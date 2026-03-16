@@ -41,6 +41,7 @@
 #include "ui_utils.h"
 #include "utils.h"
 #include "keybindings.h"
+#include "projectprivate.h"
 
 #include <string.h>
 
@@ -78,6 +79,7 @@ enum
 };
 
 static GtkTreeStore *store_openfiles;
+static GtkTreeStore *store_projectfiles;
 static GtkWidget *openfiles_popup_menu;
 static gchar *openfiles_filter;
 static GtkWidget *tag_window;	/* scrolled window that holds the symbol list GtkTreeView */
@@ -495,7 +497,10 @@ static void prepare_projectfiles(void)
 
 	tv.tree_projectfiles = ui_lookup_widget(main_widgets.window, "treeview1");
 
-	// sidebar_create_store_openfiles();
+	store_projectfiles = gtk_tree_store_new(DOCUMENTS_COLUMNS_NUM, G_TYPE_ICON, G_TYPE_STRING,
+		G_TYPE_POINTER, GDK_TYPE_COLOR, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN);
+	gtk_tree_view_set_model(GTK_TREE_VIEW(tv.tree_projectfiles), GTK_TREE_MODEL(store_projectfiles));
+	g_object_unref(store_projectfiles);
 
 	// filter_model = gtk_tree_model_filter_new(GTK_TREE_MODEL(store_openfiles), NULL);
 	// gtk_tree_model_filter_set_visible_column(GTK_TREE_MODEL_FILTER(filter_model), DOCUMENTS_VISIBLE);
@@ -540,6 +545,73 @@ static void prepare_projectfiles(void)
 
 	// g_signal_connect(GTK_TREE_VIEW(tv.tree_projectfiles), "button-press-event", G_CALLBACK(sidebar_button_press_cb), NULL);
 	// g_signal_connect(GTK_TREE_VIEW(tv.tree_projectfiles), "key-press-event", G_CALLBACK(sidebar_key_press_cb), NULL);
+}
+
+
+static void sidebar_projectfiles_add_items(GPtrArray *items, GtkTreeIter *parent)
+{
+	guint i;
+	static GIcon *dir_icon = NULL;
+	static GIcon *file_icon = NULL;
+
+	if (!dir_icon)
+		dir_icon = ui_get_mime_icon("inode/directory");
+	if (!file_icon)
+		file_icon = ui_get_mime_icon("text/plain");
+
+	for (i = 0; i < items->len; i++)
+	{
+		GeanyProjectItem *item = g_ptr_array_index(items, i);
+		GtkTreeIter iter;
+		GIcon *icon;
+
+		if (item == NULL)
+			continue;
+
+		icon = item->type == GEANY_PROJECT_ITEM_FOLDER ? dir_icon : file_icon;
+		gtk_tree_store_append(store_projectfiles, &iter, parent);
+		gtk_tree_store_set(store_projectfiles, &iter,
+			DOCUMENTS_ICON, icon,
+			DOCUMENTS_SHORTNAME, FALLBACK(item->name, ""),
+			DOCUMENTS_DOCUMENT, NULL,
+			DOCUMENTS_COLOR, NULL,
+			DOCUMENTS_FILENAME, FALLBACK(item->path, item->name),
+			DOCUMENTS_FOLD, FALSE,
+			DOCUMENTS_VISIBLE, TRUE,
+			-1);
+
+		if (item->type == GEANY_PROJECT_ITEM_FOLDER && item->children != NULL)
+			sidebar_projectfiles_add_items(item->children, &iter);
+	}
+}
+
+
+static void sidebar_projectfiles_update_all(void)
+{
+	gtk_tree_store_clear(store_projectfiles);
+
+	if (app->project == NULL || app->project->priv == NULL || app->project->priv->project_root == NULL)
+		return;
+
+	if (app->project->priv->project_root->children != NULL)
+		sidebar_projectfiles_add_items(app->project->priv->project_root->children, NULL);
+}
+
+
+static void on_project_open(G_GNUC_UNUSED GeanyObject *obj,
+	G_GNUC_UNUSED gpointer config,
+	G_GNUC_UNUSED gpointer user_data)
+{
+	if (store_projectfiles != NULL)
+		sidebar_projectfiles_update_all();
+}
+
+
+static void on_project_close(G_GNUC_UNUSED GeanyObject *obj,
+	G_GNUC_UNUSED gpointer user_data)
+{
+	if (store_projectfiles != NULL)
+		sidebar_projectfiles_update_all();
 }
 
 
@@ -1777,6 +1849,7 @@ static void on_load_settings(void)
 
 	prepare_openfiles();
 	prepare_projectfiles();
+	sidebar_projectfiles_update_all();
 	/* note: ui_prefs.sidebar_page is reapplied after plugins are loaded */
 	stash_group_display(stash_group, NULL);
 	sidebar_tabs_show_hide(GTK_NOTEBOOK(main_widgets.sidebar_notebook), NULL, 0, NULL);
@@ -1823,6 +1896,8 @@ void sidebar_init(void)
 		G_CALLBACK(sidebar_tabs_show_hide), NULL);
 	g_signal_connect_after(main_widgets.sidebar_notebook, "switch-page",
 		G_CALLBACK(on_sidebar_switch_page), NULL);
+	g_signal_connect(geany_object, "project-open", G_CALLBACK(on_project_open), NULL);
+	g_signal_connect(geany_object, "project-close", G_CALLBACK(on_project_close), NULL);
 }
 
 #define WIDGET(w) w && GTK_IS_WIDGET(w)

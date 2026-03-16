@@ -92,6 +92,11 @@ static void run_new_dialog(PropertyDialogElements *e);
 static void apply_editor_prefs(void);
 static void init_stash_prefs(void);
 static void destroy_project(gboolean open_default);
+static GeanyProjectItem *project_item_new(GeanyProjectItemType type,
+	const gchar *name, const gchar *path);
+static void project_item_free(gpointer data);
+static void _collectProjectFiles(GeanyProject *project, XMLNode *xmlNode);
+static void _collectProjectFilesRecursive(XMLNode *xmlNode, GeanyProjectItem *parent);
 
 
 #define SHOW_ERR(args) dialogs_show_msgbox(GTK_MESSAGE_ERROR, args)
@@ -462,6 +467,8 @@ static void destroy_project(gboolean open_default)
 	g_free(app->project->file_name);
 	g_free(app->project->base_path);
 	g_strfreev(app->project->file_patterns);
+	if (app->project->priv->project_root != NULL)
+		project_item_free(app->project->priv->project_root);
 
 	g_free(app->project);
 	app->project = NULL;
@@ -1077,21 +1084,98 @@ gboolean project_load_file(const gchar *locale_file_name)
 	return FALSE;
 }
 
-static void _collectProjectFiles(XMLNode *xmlNode)
+static GeanyProjectItem *project_item_new(GeanyProjectItemType type,
+	const gchar *name, const gchar *path)
 {
-  // count child nodes
-  int ct = xmlCountChildren(xmlNode);
-  for(int i=0;i<ct;i++) {
-    XMLNode *xmlChild = xmlGetChild(xmlNode, i);
-    const char *szType = xmlGetName(xmlChild);
-    if(strcmp(szType, "Folder")==0) {
-      const char *szName = xmlReadAttribute(xmlChild, "name");
-      _collectProjectFiles(xmlChild);
-    } else if(strcmp(szType, "File")==0) {
-      const char *szName = xmlReadAttribute(xmlChild, "name");
-      const char *szPath = xmlReadAttribute(xmlChild, "path");
-    }
-  }
+	GeanyProjectItem *item = g_new0(GeanyProjectItem, 1);
+
+	item->type = type;
+	item->name = g_strdup(name);
+	item->path = g_strdup(path);
+	if (type == GEANY_PROJECT_ITEM_FOLDER)
+		item->children = g_ptr_array_new();
+
+	return item;
+}
+
+
+static void project_item_free(gpointer data)
+{
+	GeanyProjectItem *item = data;
+
+	if (item == NULL)
+		return;
+
+	if (item->children != NULL)
+	{
+		g_ptr_array_set_free_func(item->children, project_item_free);
+		g_ptr_array_free(item->children, TRUE);
+	}
+
+	g_free(item->name);
+	g_free(item->path);
+	g_free(item);
+}
+
+
+static void _collectProjectFilesRecursive(XMLNode *xmlNode, GeanyProjectItem *parent)
+{
+	gint i;
+	gint count;
+
+	g_return_if_fail(xmlNode != NULL);
+	g_return_if_fail(parent != NULL && parent->children != NULL);
+
+	count = xmlCountChildren(xmlNode);
+	for (i = 0; i < count; i++)
+	{
+		XMLNode *child = xmlGetChild(xmlNode, i);
+		const gchar *type = xmlGetName(child);
+
+		if (utils_str_equal(type, "Folder"))
+		{
+			const gchar *name = xmlReadAttribute(child, "name");
+			GeanyProjectItem *folder;
+
+			folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, EMPTY(name) ? "" : name, name);
+			g_ptr_array_add(parent->children, folder);
+			_collectProjectFilesRecursive(child, folder);
+		}
+		else if (utils_str_equal(type, "File"))
+		{
+			const gchar *path = xmlReadAttribute(child, "path");
+			const gchar *name = xmlReadAttribute(child, "name");
+			const gchar *file_name = name;
+			GeanyProjectItem *file;
+			gchar *file_name_alloc = NULL;
+
+			if (EMPTY(file_name) && !EMPTY(path))
+			{
+				file_name_alloc = g_path_get_basename(path);
+				file_name = file_name_alloc;
+			}
+
+			file = project_item_new(GEANY_PROJECT_ITEM_FILE, EMPTY(file_name) ? "" : file_name,
+				EMPTY(path) ? file_name : path);
+			g_ptr_array_add(parent->children, file);
+			g_free(file_name_alloc);
+		}
+	}
+}
+
+
+static void _collectProjectFiles(GeanyProject *project, XMLNode *xmlNode)
+{
+	g_return_if_fail(project != NULL && project->priv != NULL);
+	g_return_if_fail(xmlNode != NULL);
+
+	if (project->priv->project_root != NULL)
+		project_item_free(project->priv->project_root);
+
+	project->priv->project_root = project_item_new(GEANY_PROJECT_ITEM_FOLDER,
+		FALLBACK(project->name, ""), project->base_path);
+
+	_collectProjectFilesRecursive(xmlNode, project->priv->project_root);
 }
 
 
@@ -1118,8 +1202,6 @@ static gboolean load_config(const gchar *filename)
   if(xmlProject==NULL) {
     return false;
   }
-  // debug
-  xmlPrintTree(xmlProject, 0);
   // fail if failed
   if(strcmp(xmlGetName(xmlProject), "Project")!=0) {
     return false;
@@ -1134,7 +1216,7 @@ static gboolean load_config(const gchar *filename)
   p->file_name = utils_get_utf8_from_locale(filename);
 
   // collect files
-  _collectProjectFiles(xmlProject);
+  _collectProjectFiles(p, xmlProject);
   
 
   // prepare session filename

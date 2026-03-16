@@ -28,6 +28,22 @@
 
 G_BEGIN_DECLS
 
+typedef enum GeanyProjectItemType
+{
+	GEANY_PROJECT_ITEM_FOLDER,
+	GEANY_PROJECT_ITEM_FILE
+}
+GeanyProjectItemType;
+
+typedef struct GeanyProjectItem
+{
+	gchar *name;
+	gchar *path;
+	GeanyProjectItemType type;
+	GPtrArray *children; /* GPtrArray<GeanyProjectItem *> */
+}
+GeanyProjectItem;
+
 typedef struct GeanyProjectPrivate
 {
 	// file prefs
@@ -46,6 +62,7 @@ typedef struct GeanyProjectPrivate
 
 	GPtrArray *build_filetypes_list; /* Project has custom filetype builds for these. */
 	GPtrArray *session_files;
+	GeanyProjectItem *project_root;
 }
 GeanyProjectPrivate;
 

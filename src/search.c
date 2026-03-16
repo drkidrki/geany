@@ -149,12 +149,8 @@ static struct
 fif_dlg = {NULL, NULL, NULL, NULL, NULL, NULL, {0, 0}};
 
 
-static void search_read_io(GString *string, GIOCondition condition, gpointer data);
-static void search_read_io_stderr(GString *string, GIOCondition condition, gpointer data);
-
-static void search_finished(GPid child_pid, gint status, gpointer user_data);
-
-static gchar **search_get_argv(const gchar **argv_prefix, const gchar *dir);
+static gchar **search_get_argv(const gchar *dir, GSList *patterns, gboolean recursive,
+	guint *list_len);
 
 static GRegex *compile_regex(const gchar *str, GeanyFindFlags sflags);
 
@@ -184,8 +180,7 @@ static void
 on_find_in_files_dialog_response(GtkDialog *dialog, gint response, gpointer user_data);
 
 static gboolean
-search_find_in_files(const gchar *utf8_search_text, const gchar *dir, const gchar *opts,
-	const gchar *enc);
+search_find_in_files(const gchar *utf8_search_text, const gchar *dir, const gchar *enc);
 
 
 static void init_prefs(void)
@@ -1651,48 +1646,35 @@ static void reset_msgwin(void)
 }
 
 
-static GString *get_grep_options(void)
+static GSList *get_fif_patterns(void)
 {
-	GString *gstr = g_string_new("-nHI");	/* line numbers, filenames, ignore binaries */
+	GSList *patterns = NULL;
+	gchar **split;
+	guint i;
 
-	if (settings.fif_invert_results)
-		g_string_append_c(gstr, 'v');
-	if (! settings.fif_case_sensitive)
-		g_string_append_c(gstr, 'i');
-	if (settings.fif_match_whole_word)
-		g_string_append_c(gstr, 'w');
-	if (settings.fif_recursive)
-		g_string_append_c(gstr, 'r');
-
-	if (!settings.fif_regexp)
-		g_string_append_c(gstr, 'F');
-	else
-		g_string_append_c(gstr, 'E');
-
-	if (settings.fif_use_extra_options)
-	{
-		g_strstrip(settings.fif_extra_options);
-
-		if (*settings.fif_extra_options != 0)
-		{
-			g_string_append_c(gstr, ' ');
-			g_string_append(gstr, settings.fif_extra_options);
-		}
-	}
 	g_strstrip(settings.fif_files);
-	if (settings.fif_files_mode != FILES_MODE_ALL && *settings.fif_files)
-	{
-		GString *tmp;
+	if (settings.fif_files_mode == FILES_MODE_ALL || EMPTY(settings.fif_files))
+		return NULL;
 
-		/* put --include= before each pattern */
-		tmp = g_string_new(settings.fif_files);
-		do {} while (utils_string_replace_all(tmp, "  ", " "));
-		g_string_prepend_c(tmp, ' ');
-		utils_string_replace_all(tmp, " ", " --include=");
-		g_string_append(gstr, tmp->str);
-		g_string_free(tmp, TRUE);
+	split = g_strsplit_set(settings.fif_files, " \t\r\n", -1);
+	for (i = 0; split[i] != NULL; i++)
+	{
+		if (*split[i] == '\0')
+			continue;
+		patterns = g_slist_prepend(patterns, g_pattern_spec_new(split[i]));
 	}
-	return gstr;
+	g_strfreev(split);
+	return g_slist_reverse(patterns);
+}
+
+
+static void free_pattern_specs(GSList *patterns)
+{
+	GSList *item;
+
+	foreach_slist(item, patterns)
+		g_pattern_spec_free(item->data);
+	g_slist_free(patterns);
 }
 
 
@@ -1728,18 +1710,16 @@ on_find_in_files_dialog_response(GtkDialog *dialog, gint response,
 		}
 		else
 		{
-			GString *opts = get_grep_options();
 			const gchar *enc = (enc_idx == GEANY_ENCODING_UTF_8) ? NULL :
 				encodings_get_charset_from_index(enc_idx);
 
-			if (search_find_in_files(search_text, utf8_dir, opts->str, enc))
+			if (search_find_in_files(search_text, utf8_dir, enc))
 			{
 				ui_combo_box_add_to_history(GTK_COMBO_BOX_TEXT(search_combo), search_text, 0);
 				ui_combo_box_add_to_history(GTK_COMBO_BOX_TEXT(fif_dlg.files_combo), NULL, 0);
 				ui_combo_box_add_to_history(GTK_COMBO_BOX_TEXT(dir_combo), utf8_dir, 0);
 				gtk_widget_hide(fif_dlg.dialog);
 			}
-			g_string_free(opts, TRUE);
 		}
 		g_free(locale_dir);
 	}
@@ -1749,88 +1729,193 @@ on_find_in_files_dialog_response(GtkDialog *dialog, gint response,
 
 
 static gboolean
-search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const gchar *opts,
-	const gchar *enc)
+search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const gchar *enc)
 {
-	gchar **argv_prefix, **argv;
-	gchar *command_grep;
-	gchar *command_line, *dir;
-	gchar *search_text = NULL;
-	GError *error = NULL;
+	gchar **argv;
+	gchar *dir;
+	const gchar *search_text = utf8_search_text;
 	gboolean ret = FALSE;
-	gssize utf8_text_len;
+	GRegex *regex = NULL;
+	GRegex *line_regex = NULL;
+	GSList *patterns;
+	guint i;
+	guint matches = 0;
+	gchar *utf8_str;
 
 	if (EMPTY(utf8_search_text) || ! utf8_dir) return TRUE;
 
-	command_grep = g_find_program_in_path(tool_prefs.grep_cmd);
-	if (command_grep == NULL)
-		command_line = g_strdup_printf("%s %s --", tool_prefs.grep_cmd, opts);
-	else
-	{
-		command_line = g_strdup_printf("\"%s\" %s --", command_grep, opts);
-		g_free(command_grep);
-	}
-
-	/* convert the search text in the preferred encoding (if the text is not valid UTF-8. assume
-	 * it is already in the preferred encoding) */
-	utf8_text_len = strlen(utf8_search_text);
-	if (enc != NULL && g_utf8_validate(utf8_search_text, utf8_text_len, NULL))
-	{
-		search_text = g_convert(utf8_search_text, utf8_text_len, enc, "UTF-8", NULL, NULL, NULL);
-	}
-	if (search_text == NULL)
-		search_text = g_strdup(utf8_search_text);
-
-	argv_prefix = g_new(gchar*, 3);
-	argv_prefix[0] = search_text;
 	dir = utils_get_locale_from_utf8(utf8_dir);
-
-	/* finally add the arguments(files to be searched) */
-	if (settings.fif_recursive)	/* recursive option set */
+	patterns = get_fif_patterns();
+	argv = search_get_argv(dir, patterns, settings.fif_recursive, NULL);
+	if (argv == NULL)
 	{
-		/* Use '.' so we get relative paths in the output */
-		argv_prefix[1] = g_strdup(".");
-		argv_prefix[2] = NULL;
-		argv = argv_prefix;
-	}
-	else
-	{
-		argv_prefix[1] = NULL;
-		argv = search_get_argv((const gchar**)argv_prefix, dir);
-		g_strfreev(argv_prefix);
-
-		if (argv == NULL)	/* no files */
-		{
-			g_free(command_line);
-			return FALSE;
-		}
+		free_pattern_specs(patterns);
+		g_free(dir);
+		return FALSE;
 	}
 	reset_msgwin();
+	msgwin_set_messages_dir(dir);
+	ui_progress_bar_start(_("Searching..."));
 
-	/* we can pass 'enc' without strdup'ing it here because it's a global const string and
-	 * always exits longer than the lifetime of this function */
-	if (spawn_with_callbacks(dir, command_line, argv, NULL, 0, NULL, NULL, search_read_io,
-		(gpointer) enc, 0, search_read_io_stderr, (gpointer) enc, 0, search_finished, NULL,
-		NULL, &error))
- 	{
-		gchar *utf8_str;
+	if (settings.fif_regexp)
+		regex = compile_regex(search_text,
+			settings.fif_case_sensitive ? 0 : GEANY_FIND_MATCHCASE);
 
- 		ui_progress_bar_start(_("Searching..."));
- 		msgwin_set_messages_dir(dir);
-		utf8_str = g_strdup_printf(_("%s %s -- %s (in directory: %s)"),
-			tool_prefs.grep_cmd, opts, utf8_search_text, utf8_dir);
- 		msgwin_msg_add_string(COLOR_BLUE, -1, NULL, utf8_str);
-		g_free(utf8_str);
- 		ret = TRUE;
+	if (settings.fif_regexp && regex == NULL)
+	{
+		ui_progress_bar_stop();
+		g_strfreev(argv);
+		free_pattern_specs(patterns);
+		g_free(dir);
+		return FALSE;
+	}
+
+	if (settings.fif_regexp)
+	{
+		if (settings.fif_match_whole_word)
+		{
+			gchar *line_pattern = g_strdup_printf("(^|[^[:alnum:]_])(?:%s)(?=$|[^[:alnum:]_])",
+				search_text);
+			GError *error = NULL;
+
+			line_regex = g_regex_new(line_pattern,
+				settings.fif_case_sensitive ? 0 : G_REGEX_CASELESS, 0, &error);
+			if (!line_regex)
+			{
+				ui_set_statusbar(FALSE, _("Bad regex: %s"), error->message);
+				g_error_free(error);
+				ui_progress_bar_stop();
+				g_free(line_pattern);
+				g_strfreev(argv);
+				free_pattern_specs(patterns);
+				g_regex_unref(regex);
+				g_free(dir);
+				return FALSE;
+			}
+			g_free(line_pattern);
+		}
+		else
+			line_regex = g_regex_ref(regex);
 	}
 	else
 	{
-		ui_set_statusbar(TRUE, _("Cannot execute grep tool \"%s\": %s. "
-			"Check the path setting in Preferences."), tool_prefs.grep_cmd, error->message);
-		g_error_free(error);
+		gchar *quoted = g_regex_escape_string(search_text, -1);
+		gchar *line_pattern;
+		GError *error = NULL;
+
+		if (settings.fif_match_whole_word)
+			line_pattern = g_strdup_printf("(^|[^[:alnum:]_])(?:%s)(?=$|[^[:alnum:]_])", quoted);
+		else
+			line_pattern = g_strdup(quoted);
+
+		line_regex = g_regex_new(line_pattern,
+			settings.fif_case_sensitive ? 0 : G_REGEX_CASELESS, 0, &error);
+		if (!line_regex)
+		{
+			ui_set_statusbar(FALSE, _("Bad regex: %s"), error->message);
+			g_error_free(error);
+			ui_progress_bar_stop();
+			g_free(line_pattern);
+			g_free(quoted);
+			g_strfreev(argv);
+			free_pattern_specs(patterns);
+			g_free(dir);
+			return FALSE;
+		}
+
+		g_free(line_pattern);
+		g_free(quoted);
 	}
 
-	utils_free_pointers(2, dir, command_line, NULL);
+	utf8_str = g_strdup_printf(_("Search for \"%s\" in directory: %s"),
+		utf8_search_text, utf8_dir);
+	msgwin_msg_add_string(COLOR_BLUE, -1, NULL, utf8_str);
+	g_free(utf8_str);
+
+	for (i = 0; argv[i] != NULL; i++)
+	{
+		gchar *locale_path = g_build_filename(dir, argv[i], NULL);
+		GeanyDocument *doc;
+		gchar *utf8_path;
+		gchar *contents;
+		gchar *utf8_contents;
+		gchar **lines;
+		guint j;
+
+		utf8_path = utils_get_utf8_from_locale(locale_path);
+		doc = document_find_by_filename(utf8_path);
+		g_free(utf8_path);
+		if (doc != NULL && doc->editor != NULL)
+			contents = sci_get_contents(doc->editor->sci, -1);
+		else if (! g_file_get_contents(locale_path, &contents, NULL, NULL))
+		{
+			g_free(locale_path);
+			continue;
+		}
+
+		if (enc != NULL && !g_utf8_validate(contents, -1, NULL))
+		{
+			utf8_contents = g_convert(contents, -1, "UTF-8", enc, NULL, NULL, NULL);
+			if (utf8_contents == NULL)
+				utf8_contents = g_strdup(contents);
+		}
+		else
+			utf8_contents = g_strdup(contents);
+
+		lines = g_strsplit(utf8_contents, "\n", -1);
+		for (j = 0; lines[j] != NULL; j++)
+		{
+			gboolean is_match = FALSE;
+			gchar *line = lines[j];
+
+			is_match = g_regex_match(line_regex, line, 0, NULL);
+
+			if (settings.fif_invert_results)
+				is_match = !is_match;
+
+			if (is_match)
+			{
+				gchar *line_copy = g_strdup(line);
+				g_strchomp(line_copy);
+				msgwin_msg_add(COLOR_BLACK, j + 1, doc, "%s:%d:%s", argv[i], j + 1, line_copy);
+				matches++;
+				g_free(line_copy);
+			}
+		}
+
+		g_strfreev(lines);
+		g_free(utf8_contents);
+		g_free(contents);
+		g_free(locale_path);
+	}
+
+	if (matches > 0)
+	{
+		gchar *text = g_strdup_printf(ngettext(
+				"Search completed with %d match.",
+				"Search completed with %d matches.", matches),
+			matches);
+
+		msgwin_msg_add_string(COLOR_BLUE, -1, NULL, text);
+		ui_set_statusbar(FALSE, "%s", text);
+		g_free(text);
+	}
+	else
+	{
+		msgwin_msg_add_string(COLOR_BLUE, -1, NULL, _("No matches found."));
+		ui_set_statusbar(FALSE, "%s", _("No matches found."));
+	}
+
+	utils_beep();
+	ui_progress_bar_stop();
+	ret = TRUE;
+
+	if (regex != NULL)
+		g_regex_unref(regex);
+	if (line_regex != NULL)
+		g_regex_unref(line_regex);
+	free_pattern_specs(patterns);
+	g_free(dir);
 	g_strfreev(argv);
 	return ret;
 }
@@ -1852,152 +1937,80 @@ static gboolean pattern_list_match(GSList *patterns, const gchar *str)
 /* Creates an argument vector of strings, copying argv_prefix[] values for
  * the first arguments, then followed by filenames found in dir.
  * Returns NULL if no files were found, otherwise returned vector should be fully freed. */
-static gchar **search_get_argv(const gchar **argv_prefix, const gchar *dir)
+static gchar **search_get_argv(const gchar *dir, GSList *patterns, gboolean recursive,
+	guint *list_len)
 {
-	guint prefix_len, list_len, i, j;
+	guint file_list_len = 0, i;
 	gchar **argv;
-	GSList *list, *item, *patterns = NULL;
+	GSList *list, *item;
+	GList *queue_item;
 	GError *error = NULL;
+	GQueue queue = G_QUEUE_INIT;
+	GQueue results = G_QUEUE_INIT;
 
 	g_return_val_if_fail(dir != NULL, NULL);
 
-	prefix_len = g_strv_length((gchar**)argv_prefix);
-	list = utils_get_file_list(dir, &list_len, &error);
-	if (error)
+	g_queue_push_tail(&queue, g_strdup(""));
+	while ((queue_item = g_queue_pop_head_link(&queue)) != NULL)
 	{
-		ui_set_statusbar(TRUE, _("Could not open directory (%s)"), error->message);
-		g_error_free(error);
-		return NULL;
-	}
-	if (list == NULL)
-		return NULL;
+		gchar *sub = queue_item->data;
+		gchar *scan_dir = (*sub == '\0') ? g_strdup(dir) : g_build_filename(dir, sub, NULL);
 
-	argv = g_new(gchar*, prefix_len + list_len + 1);
-
-	for (i = 0, j = 0; i < prefix_len; i++)
-	{
-		if (g_str_has_prefix(argv_prefix[i], "--include="))
+		g_list_free_1(queue_item);
+		list = utils_get_file_list(scan_dir, &file_list_len, &error);
+		if (error)
 		{
-			const gchar *pat = &(argv_prefix[i][10]); /* the pattern part of the argument */
-
-			patterns = g_slist_prepend(patterns, g_pattern_spec_new(pat));
+			ui_set_statusbar(TRUE, _("Could not open directory (%s)"), error->message);
+			g_error_free(error);
+			g_free(scan_dir);
+			g_free(sub);
+			g_queue_foreach(&queue, (GFunc) g_free, NULL);
+			g_queue_clear(&queue);
+			g_queue_foreach(&results, (GFunc) g_free, NULL);
+			g_queue_clear(&results);
+			return NULL;
 		}
-		else
-			argv[j++] = g_strdup(argv_prefix[i]);
-	}
-
-	if (patterns)
-	{
-		GSList *pat;
 
 		foreach_slist(item, list)
 		{
-			if (pattern_list_match(patterns, item->data))
-				argv[j++] = item->data;
-			else
-				g_free(item->data);
-		}
-		foreach_slist(pat, patterns)
-			g_pattern_spec_free(pat->data);
-		g_slist_free(patterns);
-	}
-	else
-	{
-		foreach_slist(item, list)
-			argv[j++] = item->data;
-	}
+			gchar *name = item->data;
+			gchar *relative = (*sub == '\0') ? g_strdup(name) : g_build_filename(sub, name, NULL);
+			gchar *full = g_build_filename(dir, relative, NULL);
 
-	argv[j] = NULL;
-	g_slist_free(list);
-	return argv;
-}
-
-
-static void read_fif_io(gchar *msg, GIOCondition condition, gchar *enc, gint msg_color)
-{
-	if (condition & (G_IO_IN | G_IO_PRI))
-	{
-		gchar *utf8_msg = NULL;
-
-		g_strstrip(msg);
-		/* enc is NULL when encoding is set to UTF-8, so we can skip any conversion */
-		if (enc != NULL)
-		{
-			if (! g_utf8_validate(msg, -1, NULL))
+			if (g_file_test(full, G_FILE_TEST_IS_DIR))
 			{
-				utf8_msg = g_convert(msg, -1, "UTF-8", enc, NULL, NULL, NULL);
+				if (recursive)
+					g_queue_push_tail(&queue, relative);
+				else
+					g_free(relative);
 			}
-			if (utf8_msg == NULL)
-				utf8_msg = msg;
+			else
+			{
+				if (!patterns || pattern_list_match(patterns, relative))
+					g_queue_push_tail(&results, relative);
+				else
+					g_free(relative);
+			}
+
+			g_free(full);
+			g_free(name);
 		}
-		else
-			utf8_msg = msg;
-
-		msgwin_msg_add_string(msg_color, -1, NULL, utf8_msg);
-
-		if (utf8_msg != msg)
-			g_free(utf8_msg);
-	}
-}
-
-
-static void search_read_io(GString *string, GIOCondition condition, gpointer data)
-{
-	read_fif_io(string->str, condition, data, COLOR_BLACK);
-}
-
-
-static void search_read_io_stderr(GString *string, GIOCondition condition, gpointer data)
-{
-	read_fif_io(string->str, condition, data, COLOR_DARK_RED);
-}
-
-
-static void search_finished(GPid child_pid, gint status, gpointer user_data)
-{
-	const gchar *msg = _("Search failed.");
-	gint exit_status;
-
-	if (SPAWN_WIFEXITED(status))
-	{
-		exit_status = SPAWN_WEXITSTATUS(status);
-	}
-	else if (SPAWN_WIFSIGNALED(status))
-	{
-		exit_status = -1;
-		g_warning("Find in Files: The command failed unexpectedly (signal received).");
-	}
-	else
-	{
-		exit_status = 1;
+		g_slist_free(list);
+		g_free(scan_dir);
+		g_free(sub);
 	}
 
-	switch (exit_status)
-	{
-		case 0:
-		{
-			gint count = gtk_tree_model_iter_n_children(
-				GTK_TREE_MODEL(msgwindow.store_msg), NULL) - 1;
-			gchar *text = g_strdup_printf(ngettext(
-						"Search completed with %d match.",
-						"Search completed with %d matches.", count),
-						count);
+	if (results.length == 0)
+		return NULL;
 
-			msgwin_msg_add_string(COLOR_BLUE, -1, NULL, text);
-			ui_set_statusbar(FALSE, "%s", text);
-			g_free(text);
-			break;
-		}
-		case 1:
-			msg = _("No matches found.");
-			/* fall through */
-		default:
-			msgwin_msg_add_string(COLOR_BLUE, -1, NULL, msg);
-			ui_set_statusbar(FALSE, "%s", msg);
-			break;
-	}
-	utils_beep();
-	ui_progress_bar_stop();
+	if (list_len != NULL)
+		*list_len = results.length;
+
+	argv = g_new(gchar*, results.length + 1);
+	for (i = 0; i < results.length; i++)
+		argv[i] = g_queue_pop_head(&results);
+	argv[results.length] = NULL;
+	return argv;
 }
 
 

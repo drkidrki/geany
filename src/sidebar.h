@@ -34,6 +34,7 @@ G_BEGIN_DECLS
 typedef struct SidebarTreeviews
 {
 	GtkWidget		*tree_openfiles;
+	GtkWidget		*tree_projectfiles;
 	GtkWidget		*default_tag_tree;
 	GtkWidget		*popup_taglist;
 }
@@ -92,6 +93,8 @@ void sidebar_remove_document(GeanyDocument *doc);
 void sidebar_add_common_menu_items(GtkMenu *menu);
 
 void sidebar_focus_openfiles_tab(void);
+
+void sidebar_focus_projectfiles_tab(void);
 
 void sidebar_focus_symbols_tab(void);
 

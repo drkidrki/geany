@@ -195,6 +195,7 @@ enum GeanyKeyBindingID
 	GEANY_KEYS_SELECT_WORDPARTRIGHT,			/**< Keybinding. */
 	GEANY_KEYS_VIEW_MESSAGEWINDOW,				/**< Keybinding. */
 	GEANY_KEYS_FOCUS_SIDEBAR_DOCUMENT_LIST,		/**< Keybinding. */
+	GEANY_KEYS_FOCUS_SIDEBAR_PROJECT_FILE_LIST,		/**< Keybinding. */
 	GEANY_KEYS_FORMAT_REFLOWPARAGRAPH,			/**< Keybinding. */
 	GEANY_KEYS_EDITOR_MOVELINEUP,				/**< Keybinding. */
 	GEANY_KEYS_NOTEBOOK_MOVETABLEFT,			/**< Keybinding. */

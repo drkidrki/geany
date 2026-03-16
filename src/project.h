@@ -27,7 +27,8 @@
 
 G_BEGIN_DECLS
 
-#define GEANY_PROJECT_EXT				"geany"
+#define GEANY_PROJECT_EXT "gproject"
+#define GEANY_SESSION_EXT "gsession"
 
 
 /** Structure for representing a project. */

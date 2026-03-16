@@ -46,6 +46,7 @@ typedef struct GeanyInterfacePrefs
 {
 	gboolean		sidebar_symbol_visible;		/**< whether the symbol sidebar is visible */
 	gboolean		sidebar_openfiles_visible;	/**< whether the open file list is visible */
+	gboolean		sidebar_projectfiles_visible;	/**< whether the project file list is visible */
 	gchar			*editor_font;				/**< editor font */
 	gchar			*tagbar_font;				/**< symbol sidebar font */
 	gchar			*msgwin_font;				/**< message window font */

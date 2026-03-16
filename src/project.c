@@ -40,6 +40,7 @@
 #include "projectprivate.h"
 #include "sidebar.h"
 #include "stash.h"
+#include "simple_xml.h"
 #include "support.h"
 #include "ui_utils.h"
 #include "utils.h"
@@ -1076,6 +1077,23 @@ gboolean project_load_file(const gchar *locale_file_name)
 	return FALSE;
 }
 
+static void _collectProjectFiles(XMLNode *xmlNode)
+{
+  // count child nodes
+  int ct = xmlCountChildren(xmlNode);
+  for(int i=0;i<ct;i++) {
+    XMLNode *xmlChild = xmlGetChild(xmlNode, i);
+    const char *szType = xmlGetName(xmlChild);
+    if(strcmp(szType, "Folder")==0) {
+      const char *szName = xmlReadAttribute(xmlChild, "name");
+      _collectProjectFiles(xmlChild);
+    } else if(strcmp(szType, "File")==0) {
+      const char *szName = xmlReadAttribute(xmlChild, "name");
+      const char *szPath = xmlReadAttribute(xmlChild, "path");
+    }
+  }
+}
+
 
 /* Reads the given filename and creates a new project with the data found in the file.
  * At this point there should not be an already opened project in Geany otherwise it will just
@@ -1083,55 +1101,89 @@ gboolean project_load_file(const gchar *locale_file_name)
  * The filename is expected in the locale encoding. */
 static gboolean load_config(const gchar *filename)
 {
-	GKeyFile *config;
-	GeanyProject *p;
-	GSList *node;
+  GKeyFile *config;
+  GeanyProject *p;
+  GSList *node;
 
-	/* there should not be an open project */
-	g_return_val_if_fail(app->project == NULL && filename != NULL, FALSE);
+  /* there should not be an open project */
+  g_return_val_if_fail(app->project == NULL && filename != NULL, FALSE);
 
-	config = g_key_file_new();
-	if (! g_key_file_load_from_file(config, filename, G_KEY_FILE_NONE, NULL))
-	{
-		g_key_file_free(config);
-		return FALSE;
-	}
+  // bail if project file doesn't exists
+  if (! g_file_test(filename, G_FILE_TEST_EXISTS))
+    return FALSE;
 
-	p = create_project();
+  // parse gproject file
+  XMLNode *xmlProject = xmlParseFile(filename);
+  // fail if failed
+  if(xmlProject==NULL) {
+    return false;
+  }
+  // debug
+  xmlPrintTree(xmlProject, 0);
+  // fail if failed
+  if(strcmp(xmlGetName(xmlProject), "Project")!=0) {
+    return false;
+  }
+  // create a project for us
+  p = create_project();
+  // extract project name
+  p->name = g_strdup(xmlReadAttribute(xmlProject, "name"));
+  // extract root
+  p->base_path = g_strdup(xmlReadAttribute(xmlProject, "root"));
+  // store filename
+  p->file_name = utils_get_utf8_from_locale(filename);
 
-	foreach_slist(node, stash_groups)
-		stash_group_load_from_key_file(node->data, config);
+  // collect files
+  _collectProjectFiles(xmlProject);
+  
 
-	p->name = utils_get_setting_string(config, "project", "name", GEANY_STRING_UNTITLED);
-	p->description = utils_get_setting_string(config, "project", "description", "");
-	p->file_name = utils_get_utf8_from_locale(filename);
-	p->base_path = utils_get_setting_string(config, "project", "base_path", "");
-	p->file_patterns = g_key_file_get_string_list(config, "project", "file_patterns", NULL, NULL);
+  // prepare session filename
+  gchar *filenameBase = g_path_get_basename(p->file_name);
+  gchar *filenameNoExt = utils_remove_ext_from_filename(filenameBase);
+  gchar *dirSession = g_build_path(G_DIR_SEPARATOR_S, app->configdir, "sessions", NULL);
+  if(!g_file_test(dirSession, G_FILE_TEST_IS_DIR)) {
+    utils_mkdir(dirSession, FALSE);
+  }
+  gchar *filenameSession = g_strconcat(dirSession, G_DIR_SEPARATOR_S, filenameNoExt, "."GEANY_SESSION_EXT, NULL);
+  g_free(dirSession);
+  g_free(filenameNoExt);
+  g_free(filenameBase);
+  
+  // load session config and if successful
+  config = g_key_file_new();
+  if (g_key_file_load_from_file(config, filenameSession, G_KEY_FILE_NONE, NULL))
+  
+    foreach_slist(node, stash_groups)
+      stash_group_load_from_key_file(node->data, config);
 
-	p->priv->long_line_behaviour = utils_get_setting_integer(config, "long line marker",
-		"long_line_behaviour", 1 /* follow global */);
-	p->priv->long_line_column = utils_get_setting_integer(config, "long line marker",
-		"long_line_column", editor_prefs.long_line_column);
-	apply_editor_prefs();
+    p->description = utils_get_setting_string(config, "project", "description", "");
+    p->file_patterns = g_key_file_get_string_list(config, "project", "file_patterns", NULL, NULL);
 
-	build_load_menu(config, GEANY_BCS_PROJ, (gpointer)p);
-	/* save current (non-project) session (it could have been changed since program startup) */
-	if (!main_status.opening_session_files)
-	{
-		/* Opening another project while some project is already opene causes
-		 * that upon closing the first project, empty session is saved here.
-		 * The check below prevents that but has a side-effect that when
-		 * save_config_on_file_change=FALSE, the session with all closed files
-		 * isn't saved when opening a project. */
-		if (have_session_docs())
-			configuration_save_default_session();
-		/* now close all open files */
-		document_close_all();
-	}
+    p->priv->long_line_behaviour = utils_get_setting_integer(config, "long line marker",
+      "long_line_behaviour", 1 /* follow global */);
+    p->priv->long_line_column = utils_get_setting_integer(config, "long line marker",
+      "long_line_column", editor_prefs.long_line_column);
+    apply_editor_prefs();
+
+    build_load_menu(config, GEANY_BCS_PROJ, (gpointer)p);
+    /* save current (non-project) session (it could have been changed since program startup) */
+    if (!main_status.opening_session_files)
+    {
+      /* Opening another project while some project is already opene causes
+       * that upon closing the first project, empty session is saved here.
+       * The check below prevents that but has a side-effect that when
+       * save_config_on_file_change=FALSE, the session with all closed files
+       * isn't saved when opening a project. */
+      if (have_session_docs())
+        configuration_save_default_session();
+      /* now close all open files */
+      document_close_all();
+    }
 	/* read session files so they can be opened with configuration_open_files() */
 	p->priv->session_files = configuration_load_session_files(config);
 	g_signal_emit_by_name(geany_object, "project-open", config);
 	g_key_file_free(config);
+	g_free(filenameSession);
 
 	update_ui();
 	return TRUE;
@@ -1161,27 +1213,33 @@ static gboolean write_config(void)
 	g_return_val_if_fail(app->project != NULL, FALSE);
 
 	p = app->project;
+	
+  // prepare session filename
+  gchar *filenameBase = g_path_get_basename(p->file_name);
+  gchar *filenameNoExt = utils_remove_ext_from_filename(filenameBase);
+  gchar *dirSession = g_build_path(G_DIR_SEPARATOR_S, app->configdir, "sessions", NULL);
+  gchar *filenameSession = g_strconcat(dirSession, G_DIR_SEPARATOR_S, filenameNoExt, "."GEANY_SESSION_EXT, NULL);
+  g_free(dirSession);
+  g_free(filenameNoExt);
+  g_free(filenameBase);
 
 	config = g_key_file_new();
 	/* try to load an existing config to keep manually added comments */
-	filename = utils_get_locale_from_utf8(p->file_name);
+	filename = utils_get_locale_from_utf8(filenameSession);
 	g_key_file_load_from_file(config, filename, G_KEY_FILE_NONE, NULL);
 
 	foreach_slist(node, stash_groups)
 		stash_group_save_to_key_file(node->data, config);
-
-	g_key_file_set_string(config, "project", "name", p->name);
-	g_key_file_set_string(config, "project", "base_path", p->base_path);
-
+		
 	if (p->description)
 		g_key_file_set_string(config, "project", "description", p->description);
 	if (p->file_patterns)
 		g_key_file_set_string_list(config, "project", "file_patterns",
 			(const gchar**) p->file_patterns, g_strv_length(p->file_patterns));
-
+	
 	// editor settings
-	g_key_file_set_integer(config, "long line marker", "long_line_behaviour", p->priv->long_line_behaviour);
-	g_key_file_set_integer(config, "long line marker", "long_line_column", p->priv->long_line_column);
+  g_key_file_set_integer(config, "long line marker", "long_line_behaviour", p->priv->long_line_behaviour);
+  g_key_file_set_integer(config, "long line marker", "long_line_column", p->priv->long_line_column);
 
 	/* store the session files into the project too */
 	configuration_save_session_files(config);
@@ -1194,6 +1252,7 @@ static gboolean write_config(void)
 	g_free(data);
 	g_free(filename);
 	g_key_file_free(config);
+	g_free(filenameSession);
 
 	return ret;
 }

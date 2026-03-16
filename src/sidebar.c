@@ -47,7 +47,7 @@
 #include <gdk/gdkkeysyms.h>
 
 
-SidebarTreeviews tv = {NULL, NULL, NULL};
+SidebarTreeviews tv = {NULL, NULL, NULL, NULL};
 /* while typeahead searching, editor should not get focus */
 static gboolean may_steal_focus = FALSE;
 
@@ -66,7 +66,8 @@ doc_items;
 enum
 {
 	TREEVIEW_SYMBOL = 0,
-	TREEVIEW_OPENFILES
+	TREEVIEW_OPENFILES,
+	TREEVIEW_PROJECTFILES
 };
 
 enum
@@ -88,6 +89,7 @@ static gboolean sidebar_button_press_cb(GtkWidget *widget, GdkEventButton *event
 static gboolean sidebar_key_press_cb(GtkWidget *widget, GdkEventKey *event,
 		gpointer user_data);
 static void on_list_document_activate(GtkCheckMenuItem *item, gpointer user_data);
+static void on_list_project_files_activate(GtkCheckMenuItem *item, gpointer user_data);
 static void on_list_symbol_activate(GtkCheckMenuItem *item, gpointer user_data);
 static void documents_menu_update(GtkTreeSelection *selection);
 static void sidebar_tabs_show_hide(GtkNotebook *notebook, GtkWidget *child,
@@ -481,6 +483,63 @@ static void prepare_openfiles(void)
 		G_CALLBACK(sidebar_button_press_cb), NULL);
 	g_signal_connect(GTK_TREE_VIEW(tv.tree_openfiles), "key-press-event",
 		G_CALLBACK(sidebar_key_press_cb), NULL);
+}
+
+static void prepare_projectfiles(void)
+{
+	GtkCellRenderer *icon_renderer;
+	GtkCellRenderer *text_renderer;
+	GtkTreeViewColumn *column;
+	GtkTreeSelection *selection;
+	// GtkTreeModel *filter_model;
+
+	tv.tree_projectfiles = ui_lookup_widget(main_widgets.window, "treeview1");
+
+	// sidebar_create_store_openfiles();
+
+	// filter_model = gtk_tree_model_filter_new(GTK_TREE_MODEL(store_openfiles), NULL);
+	// gtk_tree_model_filter_set_visible_column(GTK_TREE_MODEL_FILTER(filter_model), DOCUMENTS_VISIBLE);
+	// gtk_tree_view_set_model(GTK_TREE_VIEW(tv.tree_openfiles), filter_model);
+	// g_object_unref(filter_model);
+
+	/* These two implement "remember fold state of rows when their parents are folded". Normally
+	 * GTK does not remember the fold state and can only expand all or no children when
+	 * expanding a row. Maybe this can be useful for other tree views as well?
+	 */
+	// g_signal_connect_after(GTK_TREE_VIEW(tv.tree_openfiles), "test-expand-row", G_CALLBACK(on_row_expand), NULL);
+	// g_signal_connect_after(GTK_TREE_VIEW(tv.tree_openfiles), "test-collapse-row", G_CALLBACK(on_row_collapse), NULL);
+	// g_signal_connect_after(GTK_TREE_VIEW(tv.tree_openfiles), "row-expanded", G_CALLBACK(on_row_expanded), NULL);
+
+	/* set policy settings for the scolledwindow around the treeview again, because glade
+	 * doesn't keep the settings */
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ui_lookup_widget(main_widgets.window, "scrolledwindow1")), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+	icon_renderer = gtk_cell_renderer_pixbuf_new();
+	g_object_set(icon_renderer, "stock-size", GTK_ICON_SIZE_MENU, NULL);
+	text_renderer = gtk_cell_renderer_text_new();
+	g_object_set(text_renderer, "ellipsize", PANGO_ELLIPSIZE_MIDDLE, NULL);
+	column = gtk_tree_view_column_new();
+	gtk_tree_view_column_pack_start(column, icon_renderer, FALSE);
+	gtk_tree_view_column_set_attributes(column, icon_renderer, "gicon", DOCUMENTS_ICON, NULL);
+	gtk_tree_view_column_pack_start(column, text_renderer, TRUE);
+	gtk_tree_view_column_set_attributes(column, text_renderer, "text", DOCUMENTS_SHORTNAME, "foreground-gdk", DOCUMENTS_COLOR, NULL);
+	gtk_tree_view_append_column(GTK_TREE_VIEW(tv.tree_projectfiles), column);
+	gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(tv.tree_projectfiles), FALSE);
+
+	gtk_tree_view_set_search_column(GTK_TREE_VIEW(tv.tree_projectfiles), DOCUMENTS_SHORTNAME);
+
+	ui_widget_modify_font_from_string(tv.tree_projectfiles, interface_prefs.tagbar_font);
+
+	/* tooltips */
+	ui_tree_view_set_tooltip_text_column(GTK_TREE_VIEW(tv.tree_projectfiles), DOCUMENTS_FILENAME);
+
+	/* selection handling */
+	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tv.tree_projectfiles));
+	gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
+	// g_object_unref(store_openfiles);
+
+	// g_signal_connect(GTK_TREE_VIEW(tv.tree_projectfiles), "button-press-event", G_CALLBACK(sidebar_button_press_cb), NULL);
+	// g_signal_connect(GTK_TREE_VIEW(tv.tree_projectfiles), "key-press-event", G_CALLBACK(sidebar_key_press_cb), NULL);
 }
 
 
@@ -1165,6 +1224,13 @@ static gboolean on_sidebar_display_open_files_show(GtkWidget *item)
 	return FALSE;
 }
 
+static gboolean on_sidebar_display_project_files_show(GtkWidget *item)
+{
+	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item),
+		interface_prefs.sidebar_projectfiles_visible);
+	return FALSE;
+}
+
 
 void sidebar_add_common_menu_items(GtkMenu *menu)
 {
@@ -1187,6 +1253,14 @@ void sidebar_add_common_menu_items(GtkMenu *menu)
 	gtk_widget_show(item);
 	g_signal_connect(item, "activate",
 			G_CALLBACK(on_list_document_activate), NULL);
+			
+	item = gtk_check_menu_item_new_with_mnemonic(_("Show _Project Files"));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect(item, "draw", G_CALLBACK(on_sidebar_display_project_files_show), NULL);
+	gtk_widget_show(item);
+	g_signal_connect(item, "activate",
+			G_CALLBACK(on_list_project_files_activate), NULL);
+
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("H_ide Sidebar"));
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item),
@@ -1224,6 +1298,14 @@ static void on_openfiles_show_paths_activate(GtkCheckMenuItem *item, gpointer us
 static void on_list_document_activate(GtkCheckMenuItem *item, gpointer user_data)
 {
 	interface_prefs.sidebar_openfiles_visible = gtk_check_menu_item_get_active(item);
+	ui_sidebar_show_hide();
+	sidebar_tabs_show_hide(GTK_NOTEBOOK(main_widgets.sidebar_notebook), NULL, 0, NULL);
+}
+
+
+static void on_list_project_files_activate(GtkCheckMenuItem *item, gpointer user_data)
+{
+	interface_prefs.sidebar_projectfiles_visible = gtk_check_menu_item_get_active(item);
 	ui_sidebar_show_hide();
 	sidebar_tabs_show_hide(GTK_NOTEBOOK(main_widgets.sidebar_notebook), NULL, 0, NULL);
 }
@@ -1556,10 +1638,12 @@ static gboolean sidebar_key_press_cb(GtkWidget *widget, GdkEventKey *event,
 		if (widget_class->key_press_event)
 			widget_class->key_press_event(widget, event);
 
-		if (widget == tv.tree_openfiles) /* tag and doc list have separate handlers */
+		if (widget == tv.tree_openfiles) {
 			openfiles_go_to_selection(selection, event->keyval);
-		else
+		} else if (widget == tv.tree_projectfiles) {
+		} else {
 			taglist_go_to_selection(selection, event->keyval, event->state);
+    }
 
 		return TRUE;
 	}
@@ -1692,6 +1776,7 @@ static void on_load_settings(void)
 	tag_window = ui_lookup_widget(main_widgets.window, "scrolledwindow2");
 
 	prepare_openfiles();
+	prepare_projectfiles();
 	/* note: ui_prefs.sidebar_page is reapplied after plugins are loaded */
 	stash_group_display(stash_group, NULL);
 	sidebar_tabs_show_hide(GTK_NOTEBOOK(main_widgets.sidebar_notebook), NULL, 0, NULL);
@@ -1770,6 +1855,18 @@ void sidebar_focus_openfiles_tab(void)
 }
 
 
+void sidebar_focus_projectfiles_tab(void)
+{
+	if (ui_prefs.sidebar_visible && interface_prefs.sidebar_projectfiles_visible)
+	{
+		GtkNotebook *notebook = GTK_NOTEBOOK(main_widgets.sidebar_notebook);
+
+		gtk_notebook_set_current_page(notebook, TREEVIEW_PROJECTFILES);
+		gtk_widget_grab_focus(tv.tree_projectfiles);
+	}
+}
+
+
 void sidebar_focus_symbols_tab(void)
 {
 	if (ui_prefs.sidebar_visible && interface_prefs.sidebar_symbol_visible)
@@ -1791,6 +1888,8 @@ static void sidebar_tabs_show_hide(GtkNotebook *notebook, GtkWidget *child,
 	if (interface_prefs.sidebar_symbol_visible == FALSE)
 		tabs--;
 	if (interface_prefs.sidebar_openfiles_visible == FALSE)
+		tabs--;
+	if (interface_prefs.sidebar_projectfiles_visible == FALSE)
 		tabs--;
 
 	gtk_notebook_set_show_tabs(notebook, (tabs > 1));

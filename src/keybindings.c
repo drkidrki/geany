@@ -640,6 +640,8 @@ static void init_default_kb(void)
 		0, 0, "switch_sidebar_symbol_list", _("Switch to Sidebar Symbol List"), NULL);
 	add_kb(group, GEANY_KEYS_FOCUS_SIDEBAR_DOCUMENT_LIST, NULL,
 		0, 0, "switch_sidebar_doc_list", _("Switch to Sidebar Document List"), NULL);
+	add_kb(group, GEANY_KEYS_FOCUS_SIDEBAR_PROJECT_FILE_LIST, NULL,
+		0, 0, "switch_sidebar_project_files_list", _("Switch to Sidebar Project files List"), NULL);
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_NOTEBOOK);
 
@@ -1202,6 +1204,7 @@ static gboolean check_menu_key(GeanyDocument *doc, guint keyval, guint state, gu
 			}
 		}
 		if (focusw == tv.tree_openfiles
+		 || focusw == tv.tree_projectfiles
 		 || focusw == msgwindow.tree_status
 		 || focusw == msgwindow.tree_compiler
 		 || focusw == msgwindow.tree_msg
@@ -1803,6 +1806,9 @@ static gboolean cb_func_switch_action(guint key_id)
 			break;
 		case GEANY_KEYS_FOCUS_SIDEBAR_DOCUMENT_LIST:
 			sidebar_focus_openfiles_tab();
+			break;
+		case GEANY_KEYS_FOCUS_SIDEBAR_PROJECT_FILE_LIST:
+			sidebar_focus_projectfiles_tab();
 			break;
 		case GEANY_KEYS_FOCUS_SIDEBAR_SYMBOL_LIST:
 			sidebar_focus_symbols_tab();

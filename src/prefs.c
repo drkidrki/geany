@@ -460,6 +460,9 @@ static void prefs_init_dialog(void)
 	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_list_openfiles");
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), interface_prefs.sidebar_openfiles_visible);
 
+	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_list_projectfiles");
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), interface_prefs.sidebar_projectfiles_visible);
+
 	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "tagbar_font");
 	gtk_font_button_set_font_name(GTK_FONT_BUTTON(widget), interface_prefs.tagbar_font);
 
@@ -940,6 +943,9 @@ on_prefs_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_list_openfiles");
 		interface_prefs.sidebar_openfiles_visible = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+		
+		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_list_projectfiles");
+		interface_prefs.sidebar_projectfiles_visible = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_long_line");
 		editor_prefs.long_line_enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
@@ -1361,6 +1367,7 @@ static void on_prefs_font_choosed(GtkFontButton *widget, gpointer user_data)
 			if (GTK_IS_WIDGET(tv.default_tag_tree))
 				ui_widget_modify_font_from_string(tv.default_tag_tree, interface_prefs.tagbar_font);
 			ui_widget_modify_font_from_string(tv.tree_openfiles, interface_prefs.tagbar_font);
+			ui_widget_modify_font_from_string(tv.tree_projectfiles, interface_prefs.tagbar_font);
 			break;
 		}
 		case 2:

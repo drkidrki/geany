@@ -96,7 +96,7 @@ static GeanyProjectItem *project_item_new(GeanyProjectItemType type,
 	const gchar *name, const gchar *path);
 static void project_item_free(gpointer data);
 static void _collectProjectFiles(GeanyProject *project, XMLNode *xmlNode);
-static void _collectProjectFilesRecursive(XMLNode *xmlNode, GeanyProjectItem *parent);
+static void _collectProjectFilesRecursive(const gchar *base_path, XMLNode *xmlNode, GeanyProjectItem *parent);
 
 
 #define SHOW_ERR(args) dialogs_show_msgbox(GTK_MESSAGE_ERROR, args)
@@ -1118,49 +1118,40 @@ static void project_item_free(gpointer data)
 }
 
 
-static void _collectProjectFilesRecursive(XMLNode *xmlNode, GeanyProjectItem *parent)
+static void _collectProjectFilesRecursive(const gchar *base_path, XMLNode *xmlNode, GeanyProjectItem *parent)
 {
-	gint i;
-	gint count;
+  gint i;
+  gint count;
 
-	g_return_if_fail(xmlNode != NULL);
-	g_return_if_fail(parent != NULL && parent->children != NULL);
+  g_return_if_fail(xmlNode != NULL);
+  g_return_if_fail(parent != NULL && parent->children != NULL);
 
-	count = xmlCountChildren(xmlNode);
-	for (i = 0; i < count; i++)
-	{
-		XMLNode *child = xmlGetChild(xmlNode, i);
-		const gchar *type = xmlGetName(child);
+  count = xmlCountChildren(xmlNode);
+  for (i = 0; i < count; i++)
+  {
+    XMLNode *child = xmlGetChild(xmlNode, i);
+    const gchar *type = xmlGetName(child);
 
-		if (utils_str_equal(type, "Folder"))
-		{
-			const gchar *name = xmlReadAttribute(child, "name");
-			GeanyProjectItem *folder;
+    if (utils_str_equal(type, "Folder"))
+    {
+      const gchar *name = xmlReadAttribute(child, "name");
+      GeanyProjectItem *folder;
 
-			folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, EMPTY(name) ? "" : name, name);
-			g_ptr_array_add(parent->children, folder);
-			_collectProjectFilesRecursive(child, folder);
-		}
-		else if (utils_str_equal(type, "File"))
-		{
-			const gchar *path = xmlReadAttribute(child, "path");
-			const gchar *name = xmlReadAttribute(child, "name");
-			const gchar *file_name = name;
-			GeanyProjectItem *file;
-			gchar *file_name_alloc = NULL;
-
-			if (EMPTY(file_name) && !EMPTY(path))
-			{
-				file_name_alloc = g_path_get_basename(path);
-				file_name = file_name_alloc;
-			}
-
-			file = project_item_new(GEANY_PROJECT_ITEM_FILE, EMPTY(file_name) ? "" : file_name,
-				EMPTY(path) ? file_name : path);
-			g_ptr_array_add(parent->children, file);
-			g_free(file_name_alloc);
-		}
-	}
+      folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, EMPTY(name) ? "" : name, name);
+      g_ptr_array_add(parent->children, folder);
+      _collectProjectFilesRecursive(base_path, child, folder);
+    }
+    else if (utils_str_equal(type, "File"))
+    {
+      const gchar *path = xmlReadAttribute(child, "path");
+      const gchar *name = xmlReadAttribute(child, "name");
+      if(!EMPTY(path)) {
+        char *pathAbs = g_strconcat(base_path, G_DIR_SEPARATOR_S, path, NULL);
+        GeanyProjectItem *file = project_item_new(GEANY_PROJECT_ITEM_FILE, name, pathAbs);
+        g_ptr_array_add(parent->children, file);
+      }
+    }
+  }
 }
 
 
@@ -1175,7 +1166,7 @@ static void _collectProjectFiles(GeanyProject *project, XMLNode *xmlNode)
 	project->priv->project_root = project_item_new(GEANY_PROJECT_ITEM_FOLDER,
 		FALLBACK(project->name, ""), project->base_path);
 
-	_collectProjectFilesRecursive(xmlNode, project->priv->project_root);
+	_collectProjectFilesRecursive(project->base_path, xmlNode, project->priv->project_root);
 }
 
 

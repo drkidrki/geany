@@ -90,6 +90,9 @@ static gboolean sidebar_button_press_cb(GtkWidget *widget, GdkEventButton *event
 		gpointer user_data);
 static gboolean sidebar_key_press_cb(GtkWidget *widget, GdkEventKey *event,
 		gpointer user_data);
+static gboolean projectfiles_button_press_cb(GtkWidget *widget, GdkEventButton *event, gpointer user_data);
+static gboolean projectfiles_key_press_cb(GtkWidget *widget, GdkEventKey *event, gpointer user_data);
+
 static void on_list_document_activate(GtkCheckMenuItem *item, gpointer user_data);
 static void on_list_project_files_activate(GtkCheckMenuItem *item, gpointer user_data);
 static void on_list_symbol_activate(GtkCheckMenuItem *item, gpointer user_data);
@@ -543,8 +546,8 @@ static void prepare_projectfiles(void)
 	gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
 	// g_object_unref(store_openfiles);
 
-	// g_signal_connect(GTK_TREE_VIEW(tv.tree_projectfiles), "button-press-event", G_CALLBACK(sidebar_button_press_cb), NULL);
-	// g_signal_connect(GTK_TREE_VIEW(tv.tree_projectfiles), "key-press-event", G_CALLBACK(sidebar_key_press_cb), NULL);
+	g_signal_connect(GTK_TREE_VIEW(tv.tree_projectfiles), "button-press-event", G_CALLBACK(projectfiles_button_press_cb), NULL);
+	g_signal_connect(GTK_TREE_VIEW(tv.tree_projectfiles), "key-press-event", G_CALLBACK(projectfiles_key_press_cb), NULL);
 }
 
 
@@ -1693,6 +1696,56 @@ static gboolean taglist_go_to_selection(GtkTreeSelection *selection, guint keyva
 	return handled;
 }
 
+static gboolean projectfiles_execute_selection(GtkWidget *widget, GtkTreeSelection *selection)
+{
+  // if there is something selected
+  GtkTreeIter iter;
+  GtkTreeModel *model;
+  if (gtk_tree_selection_get_selected(selection, &model, &iter))
+  {
+    // if item has children
+    if (gtk_tree_model_iter_has_child(model, &iter))
+    {
+      // toggle item
+      GtkTreePath *path = gtk_tree_model_get_path(model, &iter);
+      if (gtk_tree_view_row_expanded(GTK_TREE_VIEW(widget), path)) {
+        gtk_tree_view_collapse_row(GTK_TREE_VIEW(widget), path);
+      } else {
+        gtk_tree_view_expand_row(GTK_TREE_VIEW(widget), path, FALSE);
+      }
+      gtk_tree_path_free(path);
+      // done
+      return TRUE;
+    // otherwise
+    } else {
+      // get assigned filename
+      gchar *file_name;
+      gtk_tree_model_get(model, &iter, DOCUMENTS_FILENAME, &file_name, -1);
+      // bail if there is none
+      if (!file_name) {
+        return FALSE;
+      }
+      // either find or open document for our filename
+      GeanyDocument *doc = document_find_by_real_path(file_name);
+      if(!doc) {
+        doc = document_open_file(file_name, false, NULL, NULL);
+      }
+      // if valid
+      if(doc) {
+        // switch to it
+        document_show_tab(doc);
+        // focus text editor
+        may_steal_focus = TRUE;
+        change_focus_to_editor(doc, tv.tree_projectfiles);
+        // done
+        return TRUE;
+      }
+    }
+  }
+  // failed
+  return FALSE;
+}
+
 
 static gboolean sidebar_key_press_cb(GtkWidget *widget, GdkEventKey *event,
 											 gpointer user_data)
@@ -1800,6 +1853,118 @@ static gboolean sidebar_button_press_cb(GtkWidget *widget, GdkEventButton *event
 		handled = TRUE;
 	}
 	return handled;
+}
+
+static gboolean projectfiles_key_press_cb(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
+{
+  // if this is an enter key
+  if(ui_is_keyval_enter_or_return(event->keyval)) {
+    /* force the TreeView handler to run before us for it to do its job (selection & stuff).
+     * doing so will prevent further handlers to be run in most cases, but the only one is our
+     * own, so guess it's fine. */
+    GtkWidgetClass *widget_class = GTK_WIDGET_GET_CLASS(widget);
+    if (widget_class->key_press_event)
+      widget_class->key_press_event(widget, event);
+
+    // execute selected item
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(widget));
+    projectfiles_execute_selection(widget, selection);
+    // done
+    return TRUE;
+  // if this is left or right arrow
+  } else if(event->keyval==GDK_KEY_Left || event->keyval==GDK_KEY_Right) {
+    // get selection
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(widget));
+    if(gtk_tree_selection_get_selected(selection, &model, &iter)) {
+      // if selected item has children
+      if(gtk_tree_model_iter_has_child(model, &iter)) {
+        GtkTreePath *path = gtk_tree_model_get_path(model, &iter);
+        // left
+        if(event->keyval==GDK_KEY_Left) {
+          // if expanded
+          if(gtk_tree_view_row_expanded(GTK_TREE_VIEW(widget), path)) {
+            // collapse it
+            gtk_tree_view_collapse_row(GTK_TREE_VIEW(widget), path);
+          // otherwise
+          } else {
+            // select parent node
+            GtkTreeIter parent_iter;
+            if(gtk_tree_model_iter_parent(model, &parent_iter, &iter)) {
+              gtk_tree_selection_select_iter(selection, &parent_iter);
+              GtkTreePath *parentPath = gtk_tree_model_get_path(model, &parent_iter);
+              gtk_tree_view_set_cursor(GTK_TREE_VIEW(widget), parentPath, NULL, FALSE);
+            }
+          }
+        // right
+        } else if(event->keyval==GDK_KEY_Right) {
+          // if already expanded
+          if(gtk_tree_view_row_expanded(GTK_TREE_VIEW(widget), path)) {
+            // select first child
+            GtkTreeIter child_iter;
+            if (gtk_tree_model_iter_children(model, &child_iter, &iter)) {
+              gtk_tree_selection_select_iter(selection, &child_iter);
+              GtkTreePath *childPath = gtk_tree_model_get_path(model, &child_iter);
+              gtk_tree_view_set_cursor(GTK_TREE_VIEW(widget), childPath, NULL, FALSE);
+            }
+          // otherwise
+          } else {
+            // expand it
+            gtk_tree_view_expand_row(GTK_TREE_VIEW(widget), path, FALSE);
+          }
+        }
+        gtk_tree_path_free(path);
+        // done
+        return TRUE;
+      // otherwise (when no children)
+      } else {
+        // if this is a left key
+        if(event->keyval==GDK_KEY_Left) {
+          // select parent node
+          GtkTreeIter parent_iter;
+          if(gtk_tree_model_iter_parent(model, &parent_iter, &iter)) {
+            gtk_tree_selection_select_iter(selection, &parent_iter);
+            GtkTreePath *parentPath = gtk_tree_model_get_path(model, &parent_iter);
+            gtk_tree_view_set_cursor(GTK_TREE_VIEW(widget), parentPath, NULL, FALSE);
+          }
+        }
+      }
+    }
+  }
+  return FALSE;
+}
+
+static gboolean projectfiles_button_press_cb(GtkWidget *widget, GdkEventButton *event, G_GNUC_UNUSED gpointer user_data)
+{
+  gboolean handled = FALSE;
+
+  /* force the TreeView handler to run before us for it to do its job (selection & stuff).
+   * doing so will prevent further handlers to be run in most cases, but the only one is our own,
+   * so guess it's fine. */
+  GtkWidgetClass *widget_class = GTK_WIDGET_GET_CLASS(widget);
+  if (widget_class->button_press_event)
+    handled = widget_class->button_press_event(widget, event);
+
+  // if this is double click
+  if (event->type == GDK_2BUTTON_PRESS)
+  {
+    // execute our selection
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(widget));
+    handled = projectfiles_execute_selection(widget, selection);
+  // right mouse button
+  } else if (event->button == 3) {
+    /*
+    if (!openfiles_popup_menu)
+      create_openfiles_popup_menu();
+
+    // update menu item sensitivity
+    documents_menu_update(selection);
+    gtk_menu_popup_at_pointer(GTK_MENU(openfiles_popup_menu), (GdkEvent *) event);
+    handled = TRUE;
+    */
+  }
+  return handled;
 }
 
 

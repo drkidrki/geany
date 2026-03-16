@@ -4967,6 +4967,9 @@ static ScintillaObject *create_new_sci(GeanyEditor *editor)
 
 	/* paste to all cursor positions, not just the primary one */
 	SSM(sci, SCI_SETMULTIPASTE, SC_MULTIPASTE_EACH, 0);
+	
+	// force blink rate
+	SSM(sci, SCI_SETCARETPERIOD, 250, 0);
 
 	/* perform autocomplete for all cursor positions, not just the primary one */
 	SSM(sci, SCI_AUTOCSETMULTI, SC_MULTIAUTOC_EACH , 0);

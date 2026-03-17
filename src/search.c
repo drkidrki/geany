@@ -89,7 +89,6 @@ static struct
 	gboolean fif_invert_results;
 	gboolean fif_recursive;
 	gboolean fif_use_extra_options;
-	gchar *fif_extra_options;
 	gint fif_files_mode;
 	gchar *fif_files;
 	gboolean find_regexp;
@@ -223,8 +222,6 @@ static void init_prefs(void)
 		"fif_invert_results", FALSE, "check_invert");
 	stash_group_add_toggle_button(group, &settings.fif_recursive,
 		"fif_recursive", FALSE, "check_recursive");
-	stash_group_add_entry(group, &settings.fif_extra_options,
-		"fif_extra_options", "", "entry_extra");
 	stash_group_add_toggle_button(group, &settings.fif_use_extra_options,
 		"fif_use_extra_options", FALSE, "check_extra");
 	stash_group_add_entry(group, &settings.fif_files,
@@ -891,7 +888,7 @@ static void create_fif_dialog(void)
 {
 	GtkWidget *dir_combo, *combo, *fcombo, *e_combo, *entry;
 	GtkWidget *label, *label1, *label2, *label3, *checkbox1, *checkbox2, *check_wholeword,
-		*check_recursive, *check_extra, *entry_extra, *check_regexp, *combo_files_mode;
+		*check_recursive, *check_extra, *check_regexp, *combo_files_mode;
 	GtkWidget *dbox, *sbox, *lbox, *rbox, *hbox, *vbox, *ebox;
 	GtkSizeGroup *size_group;
 
@@ -1032,22 +1029,6 @@ static void create_fif_dialog(void)
 	check_extra = gtk_check_button_new_with_mnemonic(_("E_xtra options:"));
 	ui_hookup_widget(fif_dlg.dialog, check_extra, "check_extra");
 	gtk_button_set_focus_on_click(GTK_BUTTON(check_extra), FALSE);
-
-	entry_extra = gtk_entry_new();
-	ui_entry_add_clear_icon(GTK_ENTRY(entry_extra));
-	gtk_entry_set_activates_default(GTK_ENTRY(entry_extra), TRUE);
-	gtk_widget_set_sensitive(entry_extra, FALSE);
-	gtk_widget_set_tooltip_text(entry_extra, _("Other options to pass to Grep"));
-	ui_hookup_widget(fif_dlg.dialog, entry_extra, "entry_extra");
-
-	/* enable entry_extra when check_extra is checked */
-	g_signal_connect(check_extra, "toggled",
-		G_CALLBACK(on_widget_toggled_set_sensitive), entry_extra);
-
-	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-	gtk_box_pack_start(GTK_BOX(hbox), check_extra, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(hbox), entry_extra, TRUE, TRUE, 0);
-	gtk_container_add(GTK_CONTAINER(vbox), hbox);
 
 	g_signal_connect(fif_dlg.dialog, "response",
 			G_CALLBACK(on_find_in_files_dialog_response), NULL);

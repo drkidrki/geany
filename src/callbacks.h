@@ -148,6 +148,8 @@ void on_menu_toggle_line_commentation1_activate(GtkMenuItem *menuitem, gpointer 
 
 void on_next_message1_activate(GtkMenuItem *menuitem, gpointer user_data);
 
+void on_project_update1_activate(GtkMenuItem *menuitem, gpointer user_data);
+
 void on_project_new1_activate(GtkMenuItem *menuitem, gpointer user_data);
 
 void on_project_new_from_folder1_activate(GtkMenuItem *menuitem, gpointer user_data);

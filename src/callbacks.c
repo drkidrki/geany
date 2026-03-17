@@ -1460,6 +1460,11 @@ void on_previous_message1_activate(GtkMenuItem *menuitem, gpointer user_data)
 }
 
 
+void on_project_update1_activate(GtkMenuItem *menuitem, gpointer user_data)
+{
+}
+
+
 void on_project_new1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	project_new(FALSE);

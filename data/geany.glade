@@ -6717,7 +6717,7 @@ Supported placeholders are:
                         </child>
                         <child>
                           <object class="GtkImageMenuItem" id="menu_quit1">
-                            <property name="label">gtk-quit</property>
+                            <property name="label">E_xit</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="use-underline">True</property>

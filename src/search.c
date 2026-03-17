@@ -894,16 +894,16 @@ static void create_fif_dialog(void)
 
 	fif_dlg.dialog = gtk_dialog_new_with_buttons(
 		_("Find in Files"), GTK_WINDOW(main_widgets.window), GTK_DIALOG_DESTROY_WITH_PARENT,
-		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, NULL);
+		"Cancel", GTK_RESPONSE_CANCEL, NULL);
 	vbox = ui_dialog_vbox_new(GTK_DIALOG(fif_dlg.dialog));
 	gtk_box_set_spacing(GTK_BOX(vbox), 9);
 	gtk_widget_set_name(fif_dlg.dialog, "GeanyDialogSearch");
 
-	gtk_dialog_add_button(GTK_DIALOG(fif_dlg.dialog), GTK_STOCK_FIND, GTK_RESPONSE_ACCEPT);
+	gtk_dialog_add_button(GTK_DIALOG(fif_dlg.dialog), "Find", GTK_RESPONSE_ACCEPT);
 	gtk_dialog_set_default_response(GTK_DIALOG(fif_dlg.dialog),
 		GTK_RESPONSE_ACCEPT);
 
-	label = gtk_label_new_with_mnemonic(_("_Search for:"));
+	label = gtk_label_new_with_mnemonic(_("Search _for:"));
 	gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
 
 	combo = gtk_combo_box_text_new_with_entry();
@@ -947,7 +947,7 @@ static void create_fif_dialog(void)
 	gtk_box_pack_start(GTK_BOX(hbox), combo_files_mode, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(hbox), fcombo, TRUE, TRUE, 0);
 
-	label1 = gtk_label_new_with_mnemonic(_("_Directory:"));
+	label1 = gtk_label_new_with_mnemonic(_("Dir_ectory:"));
 	gtk_misc_set_alignment(GTK_MISC(label1), 0, 0.5);
 
 	dir_combo = gtk_combo_box_text_new_with_entry();
@@ -987,7 +987,7 @@ static void create_fif_dialog(void)
 	gtk_box_pack_start(GTK_BOX(vbox), dbox, TRUE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(vbox), ebox, TRUE, FALSE, 0);
 
-	check_regexp = gtk_check_button_new_with_mnemonic(_("_Use regular expressions"));
+	check_regexp = gtk_check_button_new_with_mnemonic(_("Use re_gular expressions"));
 	ui_hookup_widget(fif_dlg.dialog, check_regexp, "check_regexp");
 	gtk_button_set_focus_on_click(GTK_BUTTON(check_regexp), FALSE);
 	gtk_widget_set_tooltip_text(check_regexp, _("See grep's manual page for more information"));
@@ -996,7 +996,7 @@ static void create_fif_dialog(void)
 	ui_hookup_widget(fif_dlg.dialog, check_recursive, "check_recursive");
 	gtk_button_set_focus_on_click(GTK_BUTTON(check_recursive), FALSE);
 
-	checkbox1 = gtk_check_button_new_with_mnemonic(_("C_ase sensitive"));
+	checkbox1 = gtk_check_button_new_with_mnemonic(_("_Case sensitive"));
 	ui_hookup_widget(fif_dlg.dialog, checkbox1, "check_case");
 	gtk_button_set_focus_on_click(GTK_BUTTON(checkbox1), FALSE);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox1), TRUE);

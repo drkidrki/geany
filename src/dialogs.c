@@ -1671,6 +1671,7 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
 		WINDOWS_DIALOG_MODE_COMBO_OPENED_FILES : WINDOWS_DIALOG_MODE_COMBO_PROJECT_FILES);
 	gtk_widget_set_tooltip_text(data->mode_combo, _("Choose window list mode (Alt+E toggles mode)"));
 	gtk_box_pack_start(GTK_BOX(action_area), data->mode_combo, FALSE, FALSE, 0);
+	gtk_button_box_set_child_secondary(GTK_BUTTON_BOX(action_area), data->mode_combo, TRUE);
 
 	data->store = gtk_list_store_new(WINDOWS_DIALOG_N_COLUMNS, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_POINTER);
 	data->tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(data->store));

@@ -38,6 +38,8 @@
 #include "support.h"
 #include "utils.h"
 #include "ui_utils.h"
+#include "projectprivate.h"
+#include "keybindings.h"
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
@@ -1306,6 +1308,379 @@ void dialogs_show_file_properties(GeanyDocument *doc)
 	gtk_widget_show(dialog);
 }
 
+
+
+
+typedef struct GeanyWindowsDialogRow
+{
+	gchar *display_name;
+	gchar *display_path;
+	gchar *full_path;
+	gboolean opened;
+}
+GeanyWindowsDialogRow;
+
+enum
+{
+	WINDOWS_DIALOG_COLUMN_NAME,
+	WINDOWS_DIALOG_COLUMN_PATH,
+	WINDOWS_DIALOG_COLUMN_ROW,
+	WINDOWS_DIALOG_N_COLUMNS
+};
+
+typedef struct GeanyWindowsDialogData
+{
+	GtkWidget *dialog;
+	GtkWidget *tree;
+	GtkWidget *toggle_button;
+	GtkListStore *store;
+	GeanyWindowsDialogMode mode;
+}
+GeanyWindowsDialogData;
+
+static void windows_dialog_row_free(gpointer data)
+{
+	GeanyWindowsDialogRow *row = data;
+	if (row == NULL)
+		return;
+	g_free(row->display_name);
+	g_free(row->display_path);
+	g_free(row->full_path);
+	g_free(row);
+}
+
+static gchar *windows_dialog_relative_to_project(const gchar *path)
+{
+	gchar *project_base_path;
+	gchar *relative = NULL;
+
+	if (EMPTY(path))
+		return g_strdup("");
+
+	project_base_path = project_get_base_path();
+	if (project_base_path != NULL)
+	{
+		if (g_str_has_prefix(path, project_base_path))
+		{
+			const gchar *rest = path + strlen(project_base_path);
+			while (*rest == G_DIR_SEPARATOR)
+				rest++;
+			relative = g_strdup(rest);
+		}
+		g_free(project_base_path);
+	}
+
+	if (relative == NULL)
+		relative = g_strdup(path);
+
+	return relative;
+}
+
+static void windows_dialog_store_free_rows(GtkListStore *store)
+{
+	GtkTreeModel *model = GTK_TREE_MODEL(store);
+	GtkTreeIter iter;
+	gboolean valid;
+
+	valid = gtk_tree_model_get_iter_first(model, &iter);
+	while (valid)
+	{
+		GeanyWindowsDialogRow *row = NULL;
+		gtk_tree_model_get(model, &iter, WINDOWS_DIALOG_COLUMN_ROW, &row, -1);
+		windows_dialog_row_free(row);
+		valid = gtk_tree_model_iter_next(model, &iter);
+	}
+}
+
+static gint windows_dialog_sort_rows(gconstpointer a, gconstpointer b)
+{
+	const GeanyWindowsDialogRow *row_a = a;
+	const GeanyWindowsDialogRow *row_b = b;
+	gchar *key_a;
+	gchar *key_b;
+	gint cmp;
+
+	key_a = g_utf8_collate_key_for_filename(FALLBACK(row_a->display_name, ""), -1);
+	key_b = g_utf8_collate_key_for_filename(FALLBACK(row_b->display_name, ""), -1);
+	cmp = strcmp(key_a, key_b);
+	g_free(key_a);
+	g_free(key_b);
+	if (cmp != 0)
+		return cmp;
+
+	key_a = g_utf8_collate_key_for_filename(FALLBACK(row_a->display_path, ""), -1);
+	key_b = g_utf8_collate_key_for_filename(FALLBACK(row_b->display_path, ""), -1);
+	cmp = strcmp(key_a, key_b);
+	g_free(key_a);
+	g_free(key_b);
+	return cmp;
+}
+
+static void windows_dialog_collect_project_files(GeanyProjectItem *item, GPtrArray *rows)
+{
+	guint i;
+
+	if (item == NULL)
+		return;
+
+	if (item->type == GEANY_PROJECT_ITEM_FILE)
+	{
+		GeanyWindowsDialogRow *row = g_new0(GeanyWindowsDialogRow, 1);
+		row->full_path = g_strdup(FALLBACK(item->path, ""));
+		row->display_name = g_path_get_basename(row->full_path);
+		row->display_path = windows_dialog_relative_to_project(row->full_path);
+		row->opened = FALSE;
+		g_ptr_array_add(rows, row);
+		return;
+	}
+
+	if (item->children == NULL)
+		return;
+
+	for (i = 0; i < item->children->len; i++)
+		windows_dialog_collect_project_files(g_ptr_array_index(item->children, i), rows);
+}
+
+static GPtrArray *windows_dialog_collect_rows(GeanyWindowsDialogMode mode)
+{
+	GPtrArray *rows = g_ptr_array_new_with_free_func(windows_dialog_row_free);
+	guint i;
+
+	if (mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES)
+	{
+		foreach_document(i)
+		{
+			GeanyDocument *doc = documents[i];
+			GeanyWindowsDialogRow *row;
+
+			if (EMPTY(doc->real_path))
+				continue;
+
+			row = g_new0(GeanyWindowsDialogRow, 1);
+			row->full_path = g_strdup(doc->real_path);
+			row->display_name = g_path_get_basename(doc->real_path);
+			row->display_path = windows_dialog_relative_to_project(doc->real_path);
+			row->opened = TRUE;
+			g_ptr_array_add(rows, row);
+		}
+	}
+	else if (app->project && app->project->priv && app->project->priv->project_root)
+	{
+		windows_dialog_collect_project_files(app->project->priv->project_root, rows);
+	}
+
+	g_ptr_array_sort(rows, windows_dialog_sort_rows);
+	return rows;
+}
+
+static void windows_dialog_open_selected(GeanyWindowsDialogData *data)
+{
+	GtkTreeSelection *selection;
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	GeanyWindowsDialogRow *row;
+
+	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree));
+	if (!gtk_tree_selection_get_selected(selection, &model, &iter))
+	{
+		gtk_widget_destroy(data->dialog);
+		return;
+	}
+
+	gtk_tree_model_get(model, &iter, WINDOWS_DIALOG_COLUMN_ROW, &row, -1);
+	if (row == NULL || EMPTY(row->full_path))
+	{
+		gtk_widget_destroy(data->dialog);
+		return;
+	}
+
+	if (row->opened)
+	{
+		GeanyDocument *doc = document_find_by_real_path(row->full_path);
+		if (doc)
+			document_show_tab(doc);
+	}
+	else
+		document_open_file(row->full_path, FALSE, NULL, NULL);
+
+	gtk_widget_destroy(data->dialog);
+}
+
+static void windows_dialog_close_selected_document(GeanyWindowsDialogData *data)
+{
+	GtkTreeSelection *selection;
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	GeanyWindowsDialogRow *row;
+	GeanyDocument *doc;
+
+	if (data->mode != GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES)
+		return;
+
+	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree));
+	if (!gtk_tree_selection_get_selected(selection, &model, &iter))
+	{
+		gtk_widget_destroy(data->dialog);
+		return;
+	}
+
+	gtk_tree_model_get(model, &iter, WINDOWS_DIALOG_COLUMN_ROW, &row, -1);
+	if (row == NULL)
+		return;
+
+	doc = document_find_by_real_path(row->full_path);
+	if (doc)
+		document_close(doc);
+}
+
+static void windows_dialog_update_title(GeanyWindowsDialogData *data)
+{
+	const gchar *mode = data->mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
+		_("Opened files") : _("Project files");
+	gchar *title = g_strdup_printf(_("Windows - %s"), mode);
+	gtk_window_set_title(GTK_WINDOW(data->dialog), title);
+	g_free(title);
+}
+
+static void windows_dialog_reload(GeanyWindowsDialogData *data)
+{
+	GPtrArray *rows;
+	GtkTreeIter iter;
+	guint i;
+
+	windows_dialog_store_free_rows(data->store);
+	gtk_list_store_clear(data->store);
+	rows = windows_dialog_collect_rows(data->mode);
+	for (i = 0; i < rows->len; i++)
+	{
+		GeanyWindowsDialogRow *row = g_ptr_array_index(rows, i);
+		gtk_list_store_append(data->store, &iter);
+		gtk_list_store_set(data->store, &iter,
+			WINDOWS_DIALOG_COLUMN_NAME, row->display_name,
+			WINDOWS_DIALOG_COLUMN_PATH, row->display_path,
+			WINDOWS_DIALOG_COLUMN_ROW, row,
+			-1);
+	}
+	g_ptr_array_free(rows, FALSE);
+	windows_dialog_update_title(data);
+	if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(data->store), NULL) > 0)
+	{
+		GtkTreeIter iter;
+		GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree));
+		if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(data->store), &iter))
+			gtk_tree_selection_select_iter(selection, &iter);
+	}
+}
+
+static void windows_dialog_toggle_mode(GeanyWindowsDialogData *data)
+{
+	data->mode = data->mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
+		GEANY_WINDOWS_DIALOG_MODE_PROJECT_FILES : GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES;
+	windows_dialog_reload(data);
+}
+
+static gboolean windows_dialog_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
+{
+	GeanyWindowsDialogData *data = user_data;
+	GdkModifierType state = event->state & gtk_accelerator_get_default_mod_mask();
+
+	if (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter)
+	{
+		windows_dialog_open_selected(data);
+		return TRUE;
+	}
+	if (event->keyval == GDK_KEY_Escape)
+	{
+		gtk_widget_destroy(data->dialog);
+		return TRUE;
+	}
+	if (state == GEANY_PRIMARY_MOD_MASK && event->keyval == GDK_KEY_e)
+	{
+		windows_dialog_toggle_mode(data);
+		return TRUE;
+	}
+	if (state == GDK_MOD1_MASK && (event->keyval == GDK_KEY_c || event->keyval == GDK_KEY_C))
+	{
+		windows_dialog_close_selected_document(data);
+		windows_dialog_reload(data);
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static void windows_dialog_on_destroy(GtkWidget *widget, gpointer user_data)
+{
+	GeanyWindowsDialogData *data = user_data;
+	windows_dialog_store_free_rows(data->store);
+	g_object_unref(data->store);
+	g_free(data);
+}
+
+static void windows_dialog_row_activated(GtkTreeView *treeview, GtkTreePath *path,
+	GtkTreeViewColumn *column, gpointer user_data)
+{
+	windows_dialog_open_selected(user_data);
+}
+
+static void windows_dialog_toggle_clicked(GtkButton *button, gpointer user_data)
+{
+	windows_dialog_toggle_mode(user_data);
+}
+
+void dialogs_show_windows(GeanyWindowsDialogMode mode)
+{
+	GeanyWindowsDialogData *data;
+	GtkWidget *content;
+	GtkWidget *scrolled;
+	GtkCellRenderer *renderer;
+	GtkTreeViewColumn *column;
+
+	data = g_new0(GeanyWindowsDialogData, 1);
+	data->mode = mode;
+	data->dialog = gtk_dialog_new_with_buttons("", GTK_WINDOW(main_widgets.window),
+		GTK_DIALOG_DESTROY_WITH_PARENT, _("_Open"), GTK_RESPONSE_ACCEPT,
+		GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE, NULL);
+	gtk_window_set_default_size(GTK_WINDOW(data->dialog), 780, 450);
+	gtk_widget_set_name(data->dialog, "GeanyDialog");
+
+	content = gtk_dialog_get_content_area(GTK_DIALOG(data->dialog));
+	data->toggle_button = gtk_button_new_with_mnemonic(_("_Toggle Mode (Ctrl+E)"));
+	gtk_box_pack_start(GTK_BOX(content), data->toggle_button, FALSE, FALSE, 6);
+
+	data->store = gtk_list_store_new(WINDOWS_DIALOG_N_COLUMNS, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_POINTER);
+	data->tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(data->store));
+	gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(data->tree), TRUE);
+	gtk_tree_view_set_search_column(GTK_TREE_VIEW(data->tree), WINDOWS_DIALOG_COLUMN_NAME);
+
+	renderer = gtk_cell_renderer_text_new();
+	column = gtk_tree_view_column_new_with_attributes(_("Filename"), renderer,
+		"text", WINDOWS_DIALOG_COLUMN_NAME, NULL);
+	gtk_tree_view_append_column(GTK_TREE_VIEW(data->tree), column);
+
+	renderer = gtk_cell_renderer_text_new();
+	column = gtk_tree_view_column_new_with_attributes(_("Path"), renderer,
+		"text", WINDOWS_DIALOG_COLUMN_PATH, NULL);
+	gtk_tree_view_append_column(GTK_TREE_VIEW(data->tree), column);
+
+	scrolled = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+	gtk_container_add(GTK_CONTAINER(scrolled), data->tree);
+	gtk_box_pack_start(GTK_BOX(content), scrolled, TRUE, TRUE, 6);
+
+	g_signal_connect(data->dialog, "destroy", G_CALLBACK(windows_dialog_on_destroy), data);
+	g_signal_connect(data->dialog, "key-press-event", G_CALLBACK(windows_dialog_key_press), data);
+	g_signal_connect(data->toggle_button, "clicked", G_CALLBACK(windows_dialog_toggle_clicked), data);
+	g_signal_connect(data->tree, "row-activated", G_CALLBACK(windows_dialog_row_activated), data);
+
+	windows_dialog_reload(data);
+	gtk_widget_show_all(data->dialog);
+	gtk_widget_grab_focus(data->tree);
+
+	if (gtk_dialog_run(GTK_DIALOG(data->dialog)) == GTK_RESPONSE_ACCEPT)
+		windows_dialog_open_selected(data);
+	else
+		gtk_widget_destroy(data->dialog);
+}
 
 /* extra_text can be NULL; otherwise it is displayed below main_text.
  * if parent is NULL, main_widgets.window will be used

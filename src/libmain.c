@@ -297,6 +297,8 @@ static void main_init(void)
 	gtk_widget_set_name(ui_lookup_widget(main_widgets.window, "menubar1"), "GeanyMenubar");
 	gtk_widget_set_name(main_widgets.toolbar, "GeanyToolbar");
 
+	keybindings_init_menu_item_mnemonics(ui_lookup_widget(main_widgets.window, "menubar1"));
+
 	gtk_window_set_default_size(GTK_WINDOW(main_widgets.window),
 		GEANY_WINDOW_DEFAULT_WIDTH, GEANY_WINDOW_DEFAULT_HEIGHT);
 }

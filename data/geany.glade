@@ -8073,7 +8073,7 @@ Supported placeholders are:
                   <object class="GtkMenuItem" id="menu_project1">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">_Project</property>
+                    <property name="label" translatable="yes">P_roject</property>
                     <property name="use-underline">True</property>
                     <signal name="activate" handler="on_menu_project1_activate" swapped="no"/>
                     <child type="submenu">

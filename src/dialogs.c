@@ -1655,6 +1655,7 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
 	renderer = gtk_cell_renderer_text_new();
 	column = gtk_tree_view_column_new_with_attributes(_("Filename"), renderer,
 		"text", WINDOWS_DIALOG_COLUMN_NAME, NULL);
+	gtk_tree_view_column_set_fixed_width(column, 200);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(data->tree), column);
 
 	renderer = gtk_cell_renderer_text_new();

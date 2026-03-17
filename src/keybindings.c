@@ -1431,22 +1431,6 @@ static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *ev, gpointer 
 	if (ev->keyval == 0)
 		return FALSE;
 
-	/* When a menu is currently active, allow mnemonic activation while Alt is still held.
-	 * This makes e.g. Alt+W followed by Alt+E behave like Alt+W, E. */
-	if (keybindings_get_modifiers(ev->state) == GDK_MOD1_MASK)
-	{
-		GtkWidget *grab_widget = gtk_grab_get_current();
-
-		if (GTK_IS_MENU_SHELL(grab_widget))
-		{
-			GdkEventKey menu_event = *ev;
-
-			menu_event.state &= ~GDK_MOD1_MASK;
-			if (gtk_widget_event(grab_widget, (GdkEvent *) &menu_event))
-				return TRUE;
-		}
-	}
-
 	g_signal_emit_by_name(geany_object, "key-press", ev, &key_press_ret);
 	if (key_press_ret)
 		return TRUE;

@@ -8080,6 +8080,23 @@ Supported placeholders are:
                       <object class="GtkMenu" id="menu_project1_menu">
                         <property name="can-focus">False</property>
                         <child>
+                          <object class="GtkImageMenuItem" id="project_update1">
+                            <property name="label" translatable="yes">Upda_te</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="use-underline">True</property>
+                            <property name="image">image4079</property>
+                            <property name="use-stock">False</property>
+                            <signal name="activate" handler="on_project_update1_activate" swapped="no"/>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkSeparatorMenuItem" id="separator64">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                          </object>
+                        </child>
+                        <child>
                           <object class="GtkImageMenuItem" id="project_new1">
                             <property name="label" translatable="yes">_New...</property>
                             <property name="visible">True</property>

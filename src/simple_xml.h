@@ -5,7 +5,6 @@
 // G_BEGIN_DECLS
 
 #define XML_MAX_ATTR      16
-#define XML_MAX_CHILDREN  64
 
 
 typedef struct XMLAttribute
@@ -22,8 +21,9 @@ typedef struct XMLNode
     XMLAttribute attrs[XML_MAX_ATTR];
     int attrCount;
 
-    struct XMLNode *children[XML_MAX_CHILDREN];
+    struct XMLNode **children;
     int childCount;
+    int childCapacity;
 
     struct XMLNode *parent;
 
@@ -37,6 +37,7 @@ const char *xmlGetName(XMLNode *node);
 const char* xmlReadAttribute(XMLNode* node, const char* szName);
 
 void xmlPrintTree(XMLNode *node, int depth);
+void xmlFreeTree(XMLNode *node);
 
 // G_END_DECLS
 

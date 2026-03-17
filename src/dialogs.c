@@ -1594,7 +1594,7 @@ static gboolean windows_dialog_key_press(GtkWidget *widget, GdkEventKey *event, 
 		gtk_widget_destroy(data->dialog);
 		return TRUE;
 	}
-	if (state == GEANY_PRIMARY_MOD_MASK && event->keyval == GDK_KEY_e)
+	if (state == GDK_MOD1_MASK && event->keyval == GDK_KEY_e)
 	{
 		windows_dialog_toggle_mode(data);
 		return TRUE;
@@ -1644,7 +1644,7 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
 	gtk_widget_set_name(data->dialog, "GeanyDialog");
 
 	content = gtk_dialog_get_content_area(GTK_DIALOG(data->dialog));
-	data->toggle_button = gtk_button_new_with_mnemonic(_("_Toggle Mode (Ctrl+E)"));
+	data->toggle_button = gtk_button_new_with_mnemonic(_("_Toggle Mode (Alt+E)"));
 	gtk_box_pack_start(GTK_BOX(content), data->toggle_button, FALSE, FALSE, 6);
 
 	data->store = gtk_list_store_new(WINDOWS_DIALOG_N_COLUMNS, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_POINTER);

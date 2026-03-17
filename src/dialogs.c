@@ -1664,8 +1664,9 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
 	content = gtk_dialog_get_content_area(GTK_DIALOG(data->dialog));
 	action_area = gtk_dialog_get_action_area(GTK_DIALOG(data->dialog));
 	data->mode_combo = gtk_combo_box_text_new();
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(data->mode_combo), _("Opened files mode"));
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(data->mode_combo), _("Project files mode"));
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(data->mode_combo), _("Opened files"));
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(data->mode_combo), _("Project files"));
+	gtk_widget_set_size_request(data->mode_combo, 100, -1);
 	gtk_combo_box_set_active(GTK_COMBO_BOX(data->mode_combo),
 		data->mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
 		WINDOWS_DIALOG_MODE_COMBO_OPENED_FILES : WINDOWS_DIALOG_MODE_COMBO_PROJECT_FILES);

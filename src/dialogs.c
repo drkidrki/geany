@@ -1332,11 +1332,17 @@ typedef struct GeanyWindowsDialogData
 {
 	GtkWidget *dialog;
 	GtkWidget *tree;
-	GtkWidget *toggle_button;
+	GtkWidget *mode_combo;
 	GtkListStore *store;
 	GeanyWindowsDialogMode mode;
 }
 GeanyWindowsDialogData;
+
+enum
+{
+	WINDOWS_DIALOG_MODE_COMBO_OPENED_FILES,
+	WINDOWS_DIALOG_MODE_COMBO_PROJECT_FILES
+};
 
 static void windows_dialog_row_free(gpointer data)
 {
@@ -1576,6 +1582,9 @@ static void windows_dialog_toggle_mode(GeanyWindowsDialogData *data)
 {
 	data->mode = data->mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
 		GEANY_WINDOWS_DIALOG_MODE_PROJECT_FILES : GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES;
+	gtk_combo_box_set_active(GTK_COMBO_BOX(data->mode_combo),
+		data->mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
+		WINDOWS_DIALOG_MODE_COMBO_OPENED_FILES : WINDOWS_DIALOG_MODE_COMBO_PROJECT_FILES);
 	windows_dialog_reload(data);
 }
 
@@ -1622,14 +1631,23 @@ static void windows_dialog_row_activated(GtkTreeView *treeview, GtkTreePath *pat
 	windows_dialog_open_selected(user_data);
 }
 
-static void windows_dialog_toggle_clicked(GtkButton *button, gpointer user_data)
+static void windows_dialog_mode_combo_changed(GtkComboBox *combo, gpointer user_data)
 {
-	windows_dialog_toggle_mode(user_data);
+	GeanyWindowsDialogData *data = user_data;
+	GeanyWindowsDialogMode mode = gtk_combo_box_get_active(combo) == WINDOWS_DIALOG_MODE_COMBO_PROJECT_FILES ?
+		GEANY_WINDOWS_DIALOG_MODE_PROJECT_FILES : GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES;
+
+	if (mode == data->mode)
+		return;
+
+	data->mode = mode;
+	windows_dialog_reload(data);
 }
 
 void dialogs_show_windows(GeanyWindowsDialogMode mode)
 {
 	GeanyWindowsDialogData *data;
+	GtkWidget *action_area;
 	GtkWidget *content;
 	GtkWidget *scrolled;
 	GtkCellRenderer *renderer;
@@ -1644,8 +1662,16 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
 	gtk_widget_set_name(data->dialog, "GeanyDialog");
 
 	content = gtk_dialog_get_content_area(GTK_DIALOG(data->dialog));
-	data->toggle_button = gtk_button_new_with_mnemonic(_("_Toggle Mode (Alt+E)"));
-	gtk_box_pack_start(GTK_BOX(content), data->toggle_button, FALSE, FALSE, 6);
+	action_area = gtk_dialog_get_action_area(GTK_DIALOG(data->dialog));
+	data->mode_combo = gtk_combo_box_text_new();
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(data->mode_combo), _("Opened files mode"));
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(data->mode_combo), _("Project files mode"));
+	gtk_combo_box_set_active(GTK_COMBO_BOX(data->mode_combo),
+		data->mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
+		WINDOWS_DIALOG_MODE_COMBO_OPENED_FILES : WINDOWS_DIALOG_MODE_COMBO_PROJECT_FILES);
+	gtk_widget_set_tooltip_text(data->mode_combo, _("Choose window list mode (Alt+E toggles mode)"));
+	gtk_box_pack_start(GTK_BOX(action_area), data->mode_combo, FALSE, FALSE, 0);
+	gtk_button_box_set_child_secondary(GTK_BUTTON_BOX(action_area), data->mode_combo, TRUE);
 
 	data->store = gtk_list_store_new(WINDOWS_DIALOG_N_COLUMNS, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_POINTER);
 	data->tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(data->store));
@@ -1670,7 +1696,7 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
 
 	g_signal_connect(data->dialog, "destroy", G_CALLBACK(windows_dialog_on_destroy), data);
 	g_signal_connect(data->dialog, "key-press-event", G_CALLBACK(windows_dialog_key_press), data);
-	g_signal_connect(data->toggle_button, "clicked", G_CALLBACK(windows_dialog_toggle_clicked), data);
+	g_signal_connect(data->mode_combo, "changed", G_CALLBACK(windows_dialog_mode_combo_changed), data);
 	g_signal_connect(data->tree, "row-activated", G_CALLBACK(windows_dialog_row_activated), data);
 
 	windows_dialog_reload(data);

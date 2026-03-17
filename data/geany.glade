@@ -8245,6 +8245,37 @@ Supported placeholders are:
                   </object>
                 </child>
                 <child>
+                  <object class="GtkMenuItem" id="menu_windows1">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">_Windows</property>
+                    <property name="use-underline">True</property>
+                    <child type="submenu">
+                      <object class="GtkMenu" id="menu_windows1_menu">
+                        <property name="can-focus">False</property>
+                        <child>
+                          <object class="GtkMenuItem" id="windows_opened_files1">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">_Opened Files...</property>
+                            <property name="use-underline">True</property>
+                            <signal name="activate" handler="on_windows_opened_files1_activate" swapped="no"/>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkMenuItem" id="windows_project_files1">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">_Project Files...</property>
+                            <property name="use-underline">True</property>
+                            <signal name="activate" handler="on_windows_project_files1_activate" swapped="no"/>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
                   <object class="GtkMenuItem" id="menu_help1">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>

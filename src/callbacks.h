@@ -157,6 +157,8 @@ void on_project_open1_activate(GtkMenuItem *menuitem, gpointer user_data);
 void on_project_close1_activate(GtkMenuItem *menuitem, gpointer user_data);
 
 void on_project_properties1_activate(GtkMenuItem *menuitem, gpointer user_data);
+void on_windows_opened_files1_activate(GtkMenuItem *menuitem, gpointer user_data);
+void on_windows_project_files1_activate(GtkMenuItem *menuitem, gpointer user_data);
 
 void on_menu_open_selected_file1_activate(GtkMenuItem *menuitem, gpointer user_data);
 

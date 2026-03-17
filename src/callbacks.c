@@ -1483,6 +1483,20 @@ void on_project_properties1_activate(GtkMenuItem *menuitem, gpointer user_data)
 	project_properties();
 }
 
+void on_windows_opened_files1_activate(G_GNUC_UNUSED GtkMenuItem *menuitem,
+	G_GNUC_UNUSED gpointer user_data)
+{
+	dialogs_show_windows(GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES);
+}
+
+
+void on_windows_project_files1_activate(G_GNUC_UNUSED GtkMenuItem *menuitem,
+	G_GNUC_UNUSED gpointer user_data)
+{
+	dialogs_show_windows(GEANY_WINDOWS_DIALOG_MODE_PROJECT_FILES);
+}
+
+
 
 static void on_menu_project1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {

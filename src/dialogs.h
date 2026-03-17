@@ -48,6 +48,13 @@ gchar *dialogs_show_input(const gchar *title, GtkWindow *parent,
 
 #ifdef GEANY_PRIVATE
 
+typedef enum GeanyWindowsDialogMode
+{
+	GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES,
+	GEANY_WINDOWS_DIALOG_MODE_PROJECT_FILES
+}
+GeanyWindowsDialogMode;
+
 typedef void (*GeanyInputCallback)(const gchar *text, gpointer data);
 
 
@@ -68,6 +75,8 @@ GtkWidget *dialogs_show_input_persistent(const gchar *title, GtkWindow *parent,
 	const gchar *label_text, const gchar *default_text, GeanyInputCallback input_cb, gpointer input_cb_data);
 
 void dialogs_show_file_properties(GeanyDocument *doc);
+
+void dialogs_show_windows(GeanyWindowsDialogMode mode);
 
 gboolean dialogs_show_question_full(GtkWidget *parent, const gchar *yes_btn, const gchar *no_btn,
 	const gchar *extra_text, const gchar *main_text, ...) G_GNUC_PRINTF (5, 6);

@@ -1195,6 +1195,7 @@ static gboolean load_config(const gchar *filename)
   }
   // fail if failed
   if(strcmp(xmlGetName(xmlProject), "Project")!=0) {
+    xmlFreeTree(xmlProject);
     return false;
   }
   // create a project for us
@@ -1208,7 +1209,7 @@ static gboolean load_config(const gchar *filename)
 
   // collect files
   _collectProjectFiles(p, xmlProject);
-  
+  xmlFreeTree(xmlProject);
 
   // prepare session filename
   gchar *filenameBase = g_path_get_basename(p->file_name);

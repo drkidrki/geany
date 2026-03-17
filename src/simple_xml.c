@@ -29,6 +29,7 @@
 static XMLNode *g_xmlRoot = NULL;
 static XMLNode *g_xmlCurrent = NULL;
 
+static void xmlFreeNode(XMLNode *node);
 
 
 /* ============================= */
@@ -45,11 +46,21 @@ static XMLNode* xmlCreateNode()
 
 static void xmlAddChild(XMLNode *parent, XMLNode *child)
 {
-    if (parent->childCount < XML_MAX_CHILDREN)
+    if (parent->childCount >= parent->childCapacity)
     {
-        parent->children[parent->childCount++] = child;
-        child->parent = parent;
+        int newCapacity = parent->childCapacity == 0 ? 8 : parent->childCapacity * 2;
+        XMLNode **newChildren = (XMLNode**)realloc(parent->children,
+            sizeof(XMLNode*) * newCapacity);
+
+        if (!newChildren)
+            return;
+
+        parent->children = newChildren;
+        parent->childCapacity = newCapacity;
     }
+
+    parent->children[parent->childCount++] = child;
+    child->parent = parent;
 }
 
 
@@ -163,10 +174,16 @@ XMLNode* xmlParseFile(const char *path)
     FILE *f = fopen(path, "r");
 
     if (!f)
+    {
+        xmlFreeTree(g_xmlRoot);
+        g_xmlRoot = NULL;
+        g_xmlCurrent = NULL;
         return NULL;
+    }
 
     int c;
 
+    xmlFreeTree(g_xmlRoot);
     g_xmlRoot = NULL;
     g_xmlCurrent = NULL;
 
@@ -270,6 +287,9 @@ int xmlCountChildren(XMLNode *node)
 
 XMLNode *xmlGetChild(XMLNode *node, int iChild)
 {
+  if (iChild < 0 || iChild >= node->childCount)
+    return NULL;
+
   return node->children[iChild];
 }
 
@@ -291,6 +311,25 @@ const char *xmlReadAttribute(XMLNode* node, const char* szName)
 /* ============================= */
 /*       TREE ITERATION          */
 /* ============================= */
+
+void xmlFreeTree(XMLNode *node)
+{
+    xmlFreeNode(node);
+}
+
+static void xmlFreeNode(XMLNode *node)
+{
+    int i;
+
+    if (!node)
+        return;
+
+    for (i = 0; i < node->childCount; i++)
+        xmlFreeNode(node->children[i]);
+
+    free(node->children);
+    free(node);
+}
 
 void xmlPrintTree(XMLNode *node, int depth)
 {

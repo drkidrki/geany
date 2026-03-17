@@ -1394,8 +1394,8 @@ static void windows_dialog_store_free_rows(GtkListStore *store)
 
 static gint windows_dialog_sort_rows(gconstpointer a, gconstpointer b)
 {
-	const GeanyWindowsDialogRow *row_a = a;
-	const GeanyWindowsDialogRow *row_b = b;
+	const GeanyWindowsDialogRow *row_a = *(const GeanyWindowsDialogRow**)a;
+	const GeanyWindowsDialogRow *row_b = *(const GeanyWindowsDialogRow**)b;
 	gchar *key_a;
 	gchar *key_b;
 	gint cmp;

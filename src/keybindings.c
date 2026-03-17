@@ -108,6 +108,11 @@ static void cb_func_move_tab(guint key_id);
 
 static void add_popup_menu_accels(void);
 
+static gboolean on_menu_shell_key_press_event(GtkWidget *widget, GdkEventKey *ev,
+	gpointer user_data);
+static void keybindings_connect_menu_shell_handlers(GtkWidget *widget);
+
+
 
 /** Gets significant modifiers from a GdkModifierType mask. The set of
  * significant modifiers corresponds to the default modifier mask as returned
@@ -744,6 +749,14 @@ static void free_key_group(gpointer item)
 }
 
 
+void keybindings_init_menu_item_mnemonics(GtkWidget *menu_widget)
+{
+	g_return_if_fail(GTK_IS_WIDGET(menu_widget));
+
+	keybindings_connect_menu_shell_handlers(menu_widget);
+}
+
+
 void keybindings_init(void)
 {
 	memset(binding_ids, 0, sizeof binding_ids);
@@ -1347,6 +1360,61 @@ static gboolean run_kb(GeanyKeyBinding *kb, GeanyKeyGroup *group)
 	}
 
 	return handled;
+}
+
+
+static gboolean on_menu_shell_key_press_event(GtkWidget *widget, GdkEventKey *ev,
+	gpointer user_data G_GNUC_UNUSED)
+{
+	if (keybindings_get_modifiers(ev->state) == GDK_MOD1_MASK)
+	{
+		GdkEventKey menu_event = *ev;
+
+		menu_event.state &= ~GDK_MOD1_MASK;
+		if (gtk_widget_event(widget, (GdkEvent *) &menu_event))
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
+
+static void keybindings_connect_menu_shell_handler(GtkWidget *widget)
+{
+	if (GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "geany-alt-menu-fix")))
+		return;
+
+	g_signal_connect(widget, "key-press-event", G_CALLBACK(on_menu_shell_key_press_event), NULL);
+	g_object_set_data(G_OBJECT(widget), "geany-alt-menu-fix", GINT_TO_POINTER(TRUE));
+}
+
+
+static void keybindings_connect_menu_shell_handlers(GtkWidget *widget)
+{
+	GList *children, *iter;
+
+	if (GTK_IS_MENU_SHELL(widget))
+		keybindings_connect_menu_shell_handler(widget);
+
+	if (!GTK_IS_CONTAINER(widget))
+		return;
+
+	children = gtk_container_get_children(GTK_CONTAINER(widget));
+	for (iter = children; iter != NULL; iter = iter->next)
+	{
+		GtkWidget *child = GTK_WIDGET(iter->data);
+
+		keybindings_connect_menu_shell_handlers(child);
+
+		if (GTK_IS_MENU_ITEM(child))
+		{
+			GtkWidget *submenu = gtk_menu_item_get_submenu(GTK_MENU_ITEM(child));
+
+			if (submenu != NULL)
+				keybindings_connect_menu_shell_handlers(submenu);
+		}
+	}
+	g_list_free(children);
 }
 
 

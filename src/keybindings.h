@@ -327,6 +327,7 @@ GeanyKeyBinding *keybindings_lookup_item(guint group_id, guint key_id);
 void keybindings_write_to_file(void);
 
 void keybindings_show_shortcuts(void);
+void keybindings_init_menu_item_mnemonics(GtkWidget *menu_widget);
 
 gboolean keybindings_check_event(GdkEventKey *ev, GeanyKeyBinding *kb);
 

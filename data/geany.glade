@@ -8257,7 +8257,7 @@ Supported placeholders are:
                           <object class="GtkMenuItem" id="windows_opened_files1">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">_Opened Files...</property>
+                            <property name="label" translatable="yes">_Windows - Opened Files...</property>
                             <property name="use-underline">True</property>
                             <signal name="activate" handler="on_windows_opened_files1_activate" swapped="no"/>
                           </object>
@@ -8266,7 +8266,7 @@ Supported placeholders are:
                           <object class="GtkMenuItem" id="windows_project_files1">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">_Project Files...</property>
+                            <property name="label" translatable="yes">Windows - Proj_ect Files...</property>
                             <property name="use-underline">True</property>
                             <signal name="activate" handler="on_windows_project_files1_activate" swapped="no"/>
                           </object>

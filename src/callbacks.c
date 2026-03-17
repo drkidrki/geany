@@ -1345,29 +1345,35 @@ void on_menu_select_all1_activate(GtkMenuItem *menuitem, gpointer user_data)
 
 void on_menu_show_sidebar1_toggled(GtkCheckMenuItem *checkmenuitem, gpointer user_data)
 {
-	if (ignore_callback)
-		return;
+  if (ignore_callback)
+    return;
 
-	ui_prefs.sidebar_visible = ! ui_prefs.sidebar_visible;
+  ui_prefs.sidebar_visible = ! ui_prefs.sidebar_visible;
 
-	/* show built-in tabs if no tabs visible */
-	if (ui_prefs.sidebar_visible &&
-		! interface_prefs.sidebar_openfiles_visible && ! interface_prefs.sidebar_projectfiles_visible && ! interface_prefs.sidebar_symbol_visible &&
-		gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.sidebar_notebook)) <= 3)
-	{
-		interface_prefs.sidebar_openfiles_visible = TRUE;
-		interface_prefs.sidebar_projectfiles_visible = TRUE;
-		interface_prefs.sidebar_symbol_visible = TRUE;
-	}
+  /* show built-in tabs if no tabs visible */
+  if (ui_prefs.sidebar_visible &&
+    ! interface_prefs.sidebar_openfiles_visible && ! interface_prefs.sidebar_projectfiles_visible && ! interface_prefs.sidebar_symbol_visible &&
+    gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.sidebar_notebook)) <= 3)
+  {
+    interface_prefs.sidebar_openfiles_visible = TRUE;
+    interface_prefs.sidebar_projectfiles_visible = TRUE;
+    interface_prefs.sidebar_symbol_visible = TRUE;
+  }
 
-	/* if window has input focus, set it back to the editor before toggling off */
-	if (! ui_prefs.sidebar_visible &&
-		gtk_container_get_focus_child(GTK_CONTAINER(main_widgets.sidebar_notebook)) != NULL)
-	{
-		keybindings_send_command(GEANY_KEY_GROUP_FOCUS, GEANY_KEYS_FOCUS_EDITOR);
-	}
+  // if sidebar is now visible
+  if(ui_prefs.sidebar_visible) {
+    // if project files panel is visible
+    if(interface_prefs.sidebar_projectfiles_visible) {
+      // focus it
+      sidebar_focus_projectfiles_tab();
+    }
+  // otherwise
+  } else {
+    // focus editor
+    keybindings_send_command(GEANY_KEY_GROUP_FOCUS, GEANY_KEYS_FOCUS_EDITOR);
+  }
 
-	ui_sidebar_show_hide();
+  ui_sidebar_show_hide();
 }
 
 

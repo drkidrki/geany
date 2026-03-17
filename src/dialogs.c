@@ -1552,7 +1552,11 @@ static void windows_dialog_reload(GeanyWindowsDialogData *data)
 {
 	GPtrArray *rows;
 	GtkTreeIter iter;
+	GtkTreeIter current_iter;
 	guint i;
+	gboolean current_iter_set = FALSE;
+	GeanyDocument *current_doc = document_get_current();
+	const gchar *current_path = current_doc ? current_doc->real_path : NULL;
 
 	windows_dialog_store_free_rows(data->store);
 	gtk_list_store_clear(data->store);
@@ -1566,15 +1570,34 @@ static void windows_dialog_reload(GeanyWindowsDialogData *data)
 			WINDOWS_DIALOG_COLUMN_PATH, row->display_path,
 			WINDOWS_DIALOG_COLUMN_ROW, row,
 			-1);
+
+		if (!current_iter_set && !EMPTY(current_path) && utils_filenamecmp(row->full_path, current_path) == 0)
+		{
+			current_iter = iter;
+			current_iter_set = TRUE;
+		}
 	}
 	g_ptr_array_free(rows, FALSE);
 	windows_dialog_update_title(data);
 	if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(data->store), NULL) > 0)
 	{
-		GtkTreeIter iter;
 		GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree));
-		if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(data->store), &iter))
-			gtk_tree_selection_select_iter(selection, &iter);
+		GtkTreePath *path = NULL;
+
+		if (!current_iter_set)
+			current_iter_set = gtk_tree_model_get_iter_first(GTK_TREE_MODEL(data->store), &current_iter);
+
+		if (current_iter_set)
+		{
+			gtk_tree_selection_select_iter(selection, &current_iter);
+			path = gtk_tree_model_get_path(GTK_TREE_MODEL(data->store), &current_iter);
+			if (path)
+			{
+				gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(data->tree), path, NULL, TRUE, 0.5f, 0.0f);
+				gtk_tree_view_set_cursor(GTK_TREE_VIEW(data->tree), path, NULL, FALSE);
+				gtk_tree_path_free(path);
+			}
+		}
 	}
 }
 

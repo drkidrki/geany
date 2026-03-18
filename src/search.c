@@ -88,7 +88,6 @@ static struct
   gboolean fif_match_whole_word;
   gboolean fif_invert_results;
   gboolean fif_recursive;
-  gboolean fif_use_extra_options;
   gint fif_files_mode;
   gchar *fif_files;
   gboolean find_regexp;
@@ -222,8 +221,6 @@ static void init_prefs(void)
     "fif_invert_results", FALSE, "check_invert");
   stash_group_add_toggle_button(group, &settings.fif_recursive,
     "fif_recursive", FALSE, "check_recursive");
-  stash_group_add_toggle_button(group, &settings.fif_use_extra_options,
-    "fif_use_extra_options", FALSE, "check_extra");
   stash_group_add_entry(group, &settings.fif_files,
     "fif_files", "", "entry_files");
   stash_group_add_combo_box(group, &settings.fif_files_mode,
@@ -889,7 +886,7 @@ static void create_fif_dialog(void)
 {
   GtkWidget *dir_combo, *combo, *fcombo, *e_combo, *entry;
   GtkWidget *label, *label1, *label2, *label3, *checkbox1, *checkbox2, *check_wholeword,
-    *check_recursive, *check_extra, *check_regexp, *combo_files_mode;
+    *check_recursive, *check_regexp, *combo_files_mode;
   GtkWidget *dbox, *sbox, *lbox, *rbox, *hbox, *vbox, *ebox;
   GtkSizeGroup *size_group;
 
@@ -1026,10 +1023,6 @@ static void create_fif_dialog(void)
   gtk_container_add(GTK_CONTAINER(hbox), lbox);
   gtk_container_add(GTK_CONTAINER(hbox), rbox);
   gtk_container_add(GTK_CONTAINER(vbox), hbox);
-
-  check_extra = gtk_check_button_new_with_mnemonic(_("E_xtra options:"));
-  ui_hookup_widget(fif_dlg.dialog, check_extra, "check_extra");
-  gtk_button_set_focus_on_click(GTK_BUTTON(check_extra), FALSE);
 
   g_signal_connect(fif_dlg.dialog, "response",
       G_CALLBACK(on_find_in_files_dialog_response), NULL);

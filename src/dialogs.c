@@ -1483,34 +1483,47 @@ static void windows_dialog_open_selected(GeanyWindowsDialogData *data)
 {
   GtkTreeSelection *selection;
   GtkTreeModel *model;
-  GtkTreeIter iter;
-  GeanyWindowsDialogRow *row;
+  GList *selected_paths;
+  GList *node;
 
   selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree));
-  if (!gtk_tree_selection_get_selected(selection, &model, &iter))
+  selected_paths = gtk_tree_selection_get_selected_rows(selection, &model);
+  if (selected_paths == NULL)
   {
     gtk_widget_destroy(data->dialog);
     return;
   }
 
-  gtk_tree_model_get(model, &iter, WINDOWS_DIALOG_COLUMN_ROW, &row, -1);
-  if (row == NULL || EMPTY(row->full_path))
+  for (node = selected_paths; node != NULL; node = node->next)
   {
-    gtk_widget_destroy(data->dialog);
-    return;
-  }
+    GtkTreePath *path = node->data;
+    GtkTreeIter iter;
+    GeanyWindowsDialogRow *row = NULL;
 
-  if (row->opened)
-  {
-    GeanyDocument *doc = document_find_by_real_path(row->full_path);
-    if (doc) {
-      document_show_tab(doc);
-      document_grab_focus(doc);
+    if (!gtk_tree_model_get_iter(model, &iter, path))
+      continue;
+
+    gtk_tree_model_get(model, &iter, WINDOWS_DIALOG_COLUMN_ROW, &row, -1);
+    if (row == NULL || EMPTY(row->full_path))
+      continue;
+
+    if (row->opened)
+    {
+      GeanyDocument *doc = document_find_by_real_path(row->full_path);
+      if (doc)
+      {
+        document_show_tab(doc);
+        document_grab_focus(doc);
+      }
     }
-  } else {
-    GeanyDocument *doc = document_open_file(row->full_path, FALSE, NULL, NULL);
-    document_grab_focus(doc);
+    else
+    {
+      GeanyDocument *doc = document_open_file(row->full_path, FALSE, NULL, NULL);
+      if (doc)
+        document_grab_focus(doc);
+    }
   }
+  g_list_free_full(selected_paths, (GDestroyNotify) gtk_tree_path_free);
 
   gtk_widget_destroy(data->dialog);
 }
@@ -1519,27 +1532,39 @@ static void windows_dialog_close_selected_document(GeanyWindowsDialogData *data)
 {
   GtkTreeSelection *selection;
   GtkTreeModel *model;
-  GtkTreeIter iter;
-  GeanyWindowsDialogRow *row;
-  GeanyDocument *doc;
+  GList *selected_paths;
+  GList *node;
 
   if (data->mode != GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES)
     return;
 
   selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree));
-  if (!gtk_tree_selection_get_selected(selection, &model, &iter))
+  selected_paths = gtk_tree_selection_get_selected_rows(selection, &model);
+  if (selected_paths == NULL)
   {
     gtk_widget_destroy(data->dialog);
     return;
   }
 
-  gtk_tree_model_get(model, &iter, WINDOWS_DIALOG_COLUMN_ROW, &row, -1);
-  if (row == NULL)
-    return;
+  for (node = selected_paths; node != NULL; node = node->next)
+  {
+    GtkTreePath *path = node->data;
+    GtkTreeIter iter;
+    GeanyWindowsDialogRow *row = NULL;
+    GeanyDocument *doc;
 
-  doc = document_find_by_real_path(row->full_path);
-  if (doc)
-    document_close(doc);
+    if (!gtk_tree_model_get_iter(model, &iter, path))
+      continue;
+
+    gtk_tree_model_get(model, &iter, WINDOWS_DIALOG_COLUMN_ROW, &row, -1);
+    if (row == NULL || EMPTY(row->full_path))
+      continue;
+
+    doc = document_find_by_real_path(row->full_path);
+    if (doc)
+      document_close(doc);
+  }
+  g_list_free_full(selected_paths, (GDestroyNotify) gtk_tree_path_free);
 }
 
 static void windows_dialog_update_title(GeanyWindowsDialogData *data)
@@ -1702,6 +1727,8 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
 
   data->store = gtk_list_store_new(WINDOWS_DIALOG_N_COLUMNS, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_POINTER);
   data->tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(data->store));
+  gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree)),
+    GTK_SELECTION_MULTIPLE);
   gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(data->tree), TRUE);
   gtk_tree_view_set_search_column(GTK_TREE_VIEW(data->tree), WINDOWS_DIALOG_COLUMN_NAME);
 

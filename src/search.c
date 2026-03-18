@@ -1919,79 +1919,80 @@ static gboolean pattern_list_match(GSList *patterns, const gchar *str)
  * the first arguments, then followed by filenames found in dir.
  * Returns NULL if no files were found, otherwise returned vector should be fully freed. */
 static gchar **search_get_argv(const gchar *dir, GSList *patterns, gboolean recursive,
-	guint *list_len)
+  guint *list_len)
 {
-	guint file_list_len = 0, i;
-	gchar **argv;
-	GSList *list, *item;
-	GList *queue_item;
-	GError *error = NULL;
-	GQueue queue = G_QUEUE_INIT;
-	GQueue results = G_QUEUE_INIT;
+  guint file_list_len = 0, i;
+  gchar **argv;
+  GSList *list, *item;
+  GList *queue_item;
+  GError *error = NULL;
+  GQueue queue = G_QUEUE_INIT;
+  GQueue results = G_QUEUE_INIT;
 
-	g_return_val_if_fail(dir != NULL, NULL);
+  g_return_val_if_fail(dir != NULL, NULL);
 
-	g_queue_push_tail(&queue, g_strdup(""));
-	while ((queue_item = g_queue_pop_head_link(&queue)) != NULL)
-	{
-		gchar *sub = queue_item->data;
-		gchar *scan_dir = (*sub == '\0') ? g_strdup(dir) : g_build_filename(dir, sub, NULL);
+  g_queue_push_tail(&queue, g_strdup(""));
+  while ((queue_item = g_queue_pop_head_link(&queue)) != NULL)
+  {
+    gchar *sub = queue_item->data;
+    gchar *scan_dir = (*sub == '\0') ? g_strdup(dir) : g_build_filename(dir, sub, NULL);
 
-		g_list_free_1(queue_item);
-		list = utils_get_file_list(scan_dir, &file_list_len, &error);
-		if (error)
-		{
-			ui_set_statusbar(TRUE, _("Could not open directory (%s)"), error->message);
-			g_error_free(error);
-			g_free(scan_dir);
-			g_free(sub);
-			g_queue_foreach(&queue, (GFunc) g_free, NULL);
-			g_queue_clear(&queue);
-			g_queue_foreach(&results, (GFunc) g_free, NULL);
-			g_queue_clear(&results);
-			return NULL;
-		}
+    g_list_free_1(queue_item);
+    list = utils_get_file_list(scan_dir, &file_list_len, &error);
+    if (error)
+    {
+      ui_set_statusbar(TRUE, _("Could not open directory (%s)"), error->message);
+      g_error_free(error);
+      g_free(scan_dir);
+      g_free(sub);
+      g_queue_foreach(&queue, (GFunc) g_free, NULL);
+      g_queue_clear(&queue);
+      g_queue_foreach(&results, (GFunc) g_free, NULL);
+      g_queue_clear(&results);
+      return NULL;
+    }
 
-		foreach_slist(item, list)
-		{
-			gchar *name = item->data;
-			gchar *relative = (*sub == '\0') ? g_strdup(name) : g_build_filename(sub, name, NULL);
-			gchar *full = g_build_filename(dir, relative, NULL);
+    foreach_slist(item, list)
+    {
+      gchar *name = item->data;
+      gchar *relative = (*sub == '\0') ? g_strdup(name) : g_build_filename(sub, name, NULL);
+      gchar *full = g_build_filename(dir, relative, NULL);
 
-			if (g_file_test(full, G_FILE_TEST_IS_DIR))
-			{
-				if (recursive)
-					g_queue_push_tail(&queue, relative);
-				else
-					g_free(relative);
-			}
-			else
-			{
-				if (!patterns || pattern_list_match(patterns, relative))
-					g_queue_push_tail(&results, relative);
-				else
-					g_free(relative);
-			}
+      if (g_file_test(full, G_FILE_TEST_IS_DIR))
+      {
+        if (recursive)
+          g_queue_push_tail(&queue, relative);
+        else
+          g_free(relative);
+      }
+      else
+      {
+        if (!patterns || pattern_list_match(patterns, relative))
+          g_queue_push_tail(&results, relative);
+        else
+          g_free(relative);
+      }
 
-			g_free(full);
-			g_free(name);
-		}
-		g_slist_free(list);
-		g_free(scan_dir);
-		g_free(sub);
-	}
+      g_free(full);
+      g_free(name);
+    }
+    g_slist_free(list);
+    g_free(scan_dir);
+    g_free(sub);
+  }
 
-	if (results.length == 0)
-		return NULL;
+  if (results.length == 0)
+    return NULL;
 
-	if (list_len != NULL)
-		*list_len = results.length;
+  if (list_len != NULL)
+    *list_len = results.length;
 
-	argv = g_new(gchar*, results.length + 1);
-	for (i = 0; i < results.length; i++)
-		argv[i] = g_queue_pop_head(&results);
-	argv[results.length] = NULL;
-	return argv;
+  const int ctResults = results.length;
+  argv = g_new(gchar*, ctResults + 1);
+  for (i = 0; i < ctResults; i++)
+    argv[i] = g_queue_pop_head(&results);
+  argv[ctResults] = NULL;
+  return argv;
 }
 
 

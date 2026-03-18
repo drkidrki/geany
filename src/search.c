@@ -295,6 +295,18 @@ static void on_widget_toggled_set_insensitive(
 }
 
 
+static gboolean
+on_find_dialog_option_key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
+{
+  if (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter)
+  {
+    gtk_dialog_response(GTK_DIALOG(find_dlg.dialog), GEANY_RESPONSE_FIND);
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
 static GtkWidget *add_find_checkboxes(GtkDialog *dialog)
 {
   GtkWidget *checkbox1, *checkbox2, *check_regexp, *checkbox5,
@@ -350,6 +362,22 @@ static GtkWidget *add_find_checkboxes(GtkDialog *dialog)
   checkbox5 = gtk_check_button_new_with_mnemonic(_("Match from s_tart of word"));
   ui_hookup_widget(dialog, checkbox5, "check_wordstart");
   gtk_button_set_focus_on_click(GTK_BUTTON(checkbox5), FALSE);
+
+  if (dialog == GTK_DIALOG(find_dlg.dialog))
+  {
+    g_signal_connect(check_regexp, "key-press-event",
+      G_CALLBACK(on_find_dialog_option_key_pressed), NULL);
+    g_signal_connect(checkbox7, "key-press-event",
+      G_CALLBACK(on_find_dialog_option_key_pressed), NULL);
+    g_signal_connect(check_multiline, "key-press-event",
+      G_CALLBACK(on_find_dialog_option_key_pressed), NULL);
+    g_signal_connect(checkbox1, "key-press-event",
+      G_CALLBACK(on_find_dialog_option_key_pressed), NULL);
+    g_signal_connect(checkbox2, "key-press-event",
+      G_CALLBACK(on_find_dialog_option_key_pressed), NULL);
+    g_signal_connect(checkbox5, "key-press-event",
+      G_CALLBACK(on_find_dialog_option_key_pressed), NULL);
+  }
 
   /* disable wordstart when wholeword is checked */
   g_signal_connect(checkbox2, "toggled",
@@ -476,6 +504,7 @@ static void create_find_dialog(void)
   gtk_widget_set_size_request(button, MIN_DLG_BUTTON_SIZE, -1);
   gtk_dialog_add_action_widget(GTK_DIALOG(find_dlg.dialog), button,
     GEANY_RESPONSE_FIND);
+  gtk_dialog_set_default_response(GTK_DIALOG(find_dlg.dialog), GEANY_RESPONSE_FIND);
 
   label = gtk_label_new_with_mnemonic(_("Search _for:"));
   gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);

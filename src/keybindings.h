@@ -281,6 +281,7 @@ enum GeanyKeyBindingID
 	GEANY_KEYS_PROJECT_NEW_FROM_FOLDER,			/**< Keybinding.
 												 * @since 2.0 (API 243) */
 	GEANY_KEYS_PROJECT_COLLAPSE_FILES_TREE,		/**< Keybinding. */
+	GEANY_KEYS_PROJECT_LOCATE_CURRENT_FILE,		/**< Keybinding. */
 	GEANY_KEYS_COUNT	/* must not be used by plugins */
 };
 

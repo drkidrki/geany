@@ -1557,6 +1557,49 @@ void sidebar_select_openfiles_item(GeanyDocument *doc)
 }
 
 
+typedef struct SidebarProjectFileFindData
+{
+	const gchar *real_path;
+	gboolean found;
+} SidebarProjectFileFindData;
+
+
+static gboolean tree_model_find_project_file(GtkTreeModel *model, GtkTreePath *path,
+	GtkTreeIter *iter, gpointer data)
+{
+	SidebarProjectFileFindData *find_data = data;
+	gchar *filename = NULL;
+
+	gtk_tree_model_get(model, iter, DOCUMENTS_FILENAME, &filename, -1);
+
+	if (g_strcmp0(filename, find_data->real_path) == 0)
+	{
+		gtk_tree_view_expand_to_path(GTK_TREE_VIEW(tv.tree_projectfiles), path);
+		gtk_tree_view_set_cursor(GTK_TREE_VIEW(tv.tree_projectfiles), path, NULL, FALSE);
+		find_data->found = TRUE;
+	}
+
+	g_free(filename);
+	return find_data->found;
+}
+
+
+void sidebar_select_projectfiles_item(GeanyDocument *doc)
+{
+	SidebarProjectFileFindData data;
+
+	g_return_if_fail(doc != NULL);
+	g_return_if_fail(doc->real_path != NULL);
+	g_return_if_fail(store_projectfiles != NULL);
+	g_return_if_fail(tv.tree_projectfiles != NULL);
+
+	data.real_path = doc->real_path;
+	data.found = FALSE;
+
+	gtk_tree_model_foreach(GTK_TREE_MODEL(store_projectfiles), tree_model_find_project_file, &data);
+}
+
+
 /* callbacks */
 
 static void document_action(GeanyDocument *doc, gint action)

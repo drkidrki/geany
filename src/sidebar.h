@@ -87,6 +87,7 @@ void sidebar_openfiles_update_all(void);
 void sidebar_openfiles_set_filter(const gchar *filter);
 
 void sidebar_select_openfiles_item(GeanyDocument *doc);
+void sidebar_select_projectfiles_item(GeanyDocument *doc);
 
 void sidebar_remove_document(GeanyDocument *doc);
 

@@ -360,13 +360,13 @@ static GtkWidget *add_find_checkboxes(GtkDialog *dialog)
 
   /* Matching options */
   mbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-  gtk_box_pack_start(GTK_BOX(mbox), checkbox1, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(mbox), checkbox2, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(mbox), checkbox1, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(mbox), checkbox5, FALSE, FALSE, 0);
 
   hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-  gtk_box_pack_start(GTK_BOX(hbox), fbox, TRUE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(hbox), mbox, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), fbox, TRUE, TRUE, 0);
   return hbox;
 }
 

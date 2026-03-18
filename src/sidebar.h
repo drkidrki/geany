@@ -33,10 +33,10 @@ G_BEGIN_DECLS
 
 typedef struct SidebarTreeviews
 {
-	GtkWidget		*tree_openfiles;
-	GtkWidget		*tree_projectfiles;
-	GtkWidget		*default_tag_tree;
-	GtkWidget		*popup_taglist;
+  GtkWidget   *tree_openfiles;
+  GtkWidget   *tree_projectfiles;
+  GtkWidget   *default_tag_tree;
+  GtkWidget   *popup_taglist;
 }
 SidebarTreeviews;
 
@@ -44,32 +44,32 @@ extern SidebarTreeviews tv;
 
 enum
 {
-	SYMBOLS_COLUMN_ICON,
-	SYMBOLS_COLUMN_NAME,
-	SYMBOLS_COLUMN_TAG,
-	SYMBOLS_COLUMN_TOOLTIP,
-	SYMBOLS_N_COLUMNS
+  SYMBOLS_COLUMN_ICON,
+  SYMBOLS_COLUMN_NAME,
+  SYMBOLS_COLUMN_TAG,
+  SYMBOLS_COLUMN_TOOLTIP,
+  SYMBOLS_N_COLUMNS
 };
 
 enum
 {
-	OPENFILES_PATHS_NONE,
-	OPENFILES_PATHS_LIST,
-	OPENFILES_PATHS_TREE,
-	OPENFILES_PATHS_COUNT
+  OPENFILES_PATHS_NONE,
+  OPENFILES_PATHS_LIST,
+  OPENFILES_PATHS_TREE,
+  OPENFILES_PATHS_COUNT
 };
 
 /* documents tree model columns */
 enum
 {
-	DOCUMENTS_ICON,
-	DOCUMENTS_SHORTNAME,    /* dirname for parents, basename for children */
-	DOCUMENTS_DOCUMENT,
-	DOCUMENTS_COLOR,
-	DOCUMENTS_FILENAME,     /* full filename */
-	DOCUMENTS_FOLD,         /* fold state stored when folding parent rows */
-	DOCUMENTS_VISIBLE,
-	DOCUMENTS_COLUMNS_NUM
+  DOCUMENTS_ICON,
+  DOCUMENTS_SHORTNAME,    /* dirname for parents, basename for children */
+  DOCUMENTS_DOCUMENT,
+  DOCUMENTS_COLOR,
+  DOCUMENTS_FILENAME,     /* full filename */
+  DOCUMENTS_FOLD,         /* fold state stored when folding parent rows */
+  DOCUMENTS_VISIBLE,
+  DOCUMENTS_COLUMNS_NUM
 };
 
 void sidebar_init(void);
@@ -95,7 +95,7 @@ void sidebar_add_common_menu_items(GtkMenu *menu);
 
 void sidebar_focus_openfiles_tab(void);
 
-void sidebar_focus_projectfiles_tab(void);
+void sidebar_focus_projectfiles_tab(bool bAssureVisible);
 
 void sidebar_focus_symbols_tab(void);
 

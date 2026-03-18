@@ -460,15 +460,11 @@ static void create_find_dialog(void)
   gtk_window_set_title(GTK_WINDOW(find_dlg.dialog), _("Find"));
   gtk_window_set_transient_for(GTK_WINDOW(find_dlg.dialog), GTK_WINDOW(main_widgets.window));
   gtk_window_set_destroy_with_parent(GTK_WINDOW(find_dlg.dialog), TRUE);
+  gtk_dialog_set_default_response(GTK_DIALOG(find_dlg.dialog), GEANY_RESPONSE_FIND);
 
   vbox = ui_dialog_vbox_new(GTK_DIALOG(find_dlg.dialog));
   gtk_widget_set_name(find_dlg.dialog, "GeanyDialogSearch");
   gtk_box_set_spacing(GTK_BOX(vbox), 9);
-
-  button = gtk_button_new_from_stock("Close");
-  gtk_widget_set_size_request(button, MIN_DLG_BUTTON_SIZE, -1);
-  gtk_dialog_add_action_widget(GTK_DIALOG(find_dlg.dialog), button,
-    GTK_RESPONSE_CANCEL);
 
   button = ui_button_new_with_image(GTK_STOCK_GO_BACK, _("_Previous"));
   gtk_widget_set_size_request(button, MIN_DLG_BUTTON_SIZE, -1);
@@ -480,7 +476,6 @@ static void create_find_dialog(void)
   gtk_widget_set_size_request(button, MIN_DLG_BUTTON_SIZE, -1);
   gtk_dialog_add_action_widget(GTK_DIALOG(find_dlg.dialog), button,
     GEANY_RESPONSE_FIND);
-  gtk_dialog_set_default_response(GTK_DIALOG(find_dlg.dialog), GEANY_RESPONSE_FIND);
 
   label = gtk_label_new_with_mnemonic(_("Search _for:"));
   gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);

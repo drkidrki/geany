@@ -1039,13 +1039,13 @@ static void create_fif_dialog(void)
   gtk_container_add(GTK_CONTAINER(lbox), check_recursive);
 
   rbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-  gtk_container_add(GTK_CONTAINER(rbox), checkbox1);
   gtk_container_add(GTK_CONTAINER(rbox), check_wholeword);
+  gtk_container_add(GTK_CONTAINER(rbox), checkbox1);
   gtk_container_add(GTK_CONTAINER(rbox), gtk_label_new(NULL));
 
   hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-  gtk_container_add(GTK_CONTAINER(hbox), lbox);
   gtk_container_add(GTK_CONTAINER(hbox), rbox);
+  gtk_container_add(GTK_CONTAINER(hbox), lbox);
   gtk_container_add(GTK_CONTAINER(vbox), hbox);
 
   g_signal_connect(fif_dlg.dialog, "response",

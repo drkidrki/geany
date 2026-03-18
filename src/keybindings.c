@@ -384,6 +384,9 @@ static void init_default_kb(void)
 	add_kb(group, GEANY_KEYS_PROJECT_COLLAPSE_FILES_TREE, NULL,
 		GDK_KEY_backslash, GEANY_PRIMARY_MOD_MASK, "project_collapse_files_tree",
 		_("Collapse Project Files Tree"), NULL);
+	add_kb(group, GEANY_KEYS_PROJECT_LOCATE_CURRENT_FILE, NULL,
+		GDK_KEY_1, GDK_MOD1_MASK, "project_locate_current_file",
+		_("Locate Current File in Project Files Tree"), NULL);
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_EDITOR);
 
@@ -1598,6 +1601,17 @@ static gboolean cb_func_project_action(guint key_id)
 			if (tv.tree_projectfiles != NULL)
 				gtk_tree_view_collapse_all(GTK_TREE_VIEW(tv.tree_projectfiles));
 			break;
+		case GEANY_KEYS_PROJECT_LOCATE_CURRENT_FILE:
+		{
+			GeanyDocument *doc = document_get_current();
+
+			if (doc != NULL)
+			{
+				sidebar_focus_projectfiles_tab();
+				sidebar_select_projectfiles_item(doc);
+			}
+			break;
+		}
 	}
 	return TRUE;
 }

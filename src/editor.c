@@ -290,63 +290,63 @@ void editor_snippets_init(void)
 
 
 static gboolean on_editor_button_press_event(GtkWidget *widget, GdkEventButton *event,
-											 gpointer data)
+                       gpointer data)
 {
-	GeanyEditor *editor = data;
-	GeanyDocument *doc = editor->document;
+  GeanyEditor *editor = data;
+  GeanyDocument *doc = editor->document;
 
-	/* it's very unlikely we got a 'real' click even on 0, 0, so assume it is a
-	 * fake event to show the editor menu triggered by a key event where we want to use the
-	 * text cursor position. */
-	if (event->x > 0.0 && event->y > 0.0)
-		editor_info.click_pos = sci_get_position_from_xy(editor->sci,
-			(gint)event->x, (gint)event->y, FALSE);
-	else
-		editor_info.click_pos = sci_get_current_position(editor->sci);
+  /* it's very unlikely we got a 'real' click even on 0, 0, so assume it is a
+   * fake event to show the editor menu triggered by a key event where we want to use the
+   * text cursor position. */
+  if (event->x > 0.0 && event->y > 0.0)
+    editor_info.click_pos = sci_get_position_from_xy(editor->sci,
+      (gint)event->x, (gint)event->y, FALSE);
+  else
+    editor_info.click_pos = sci_get_current_position(editor->sci);
 
-	if (event->button == 1)
-	{
-		guint state = keybindings_get_modifiers(event->state);
+  if (event->button == 1)
+  {
+    guint state = keybindings_get_modifiers(event->state);
 
-		if (event->type == GDK_BUTTON_PRESS && editor_prefs.disable_dnd)
-		{
-			gint ss = sci_get_selection_start(editor->sci);
-			sci_set_selection_end(editor->sci, ss);
-		}
-		if (event->type == GDK_BUTTON_PRESS && state == GEANY_PRIMARY_MOD_MASK)
-		{
-			sci_set_current_position(editor->sci, editor_info.click_pos, FALSE);
+    if (event->type == GDK_BUTTON_PRESS && editor_prefs.disable_dnd)
+    {
+      gint ss = sci_get_selection_start(editor->sci);
+      sci_set_selection_end(editor->sci, ss);
+    }
+    if (event->type == GDK_BUTTON_PRESS && state == GDK_MOD1_MASK)
+    {
+      sci_set_current_position(editor->sci, editor_info.click_pos, FALSE);
 
-			if (!symbols_goto_tag(doc, editor_info.click_pos, TRUE))
-				keybindings_send_command(GEANY_KEY_GROUP_GOTO, GEANY_KEYS_GOTO_MATCHINGBRACE);
-			return TRUE;
-		}
-		return document_check_disk_status(doc, FALSE);
-	}
+      if (!symbols_goto_tag(doc, editor_info.click_pos, TRUE))
+        keybindings_send_command(GEANY_KEY_GROUP_GOTO, GEANY_KEYS_GOTO_MATCHINGBRACE);
+      return TRUE;
+    }
+    return document_check_disk_status(doc, FALSE);
+  }
 
-	/* calls the edit popup menu in the editor */
-	if (event->button == 3)
-	{
-		gboolean can_goto;
+  /* calls the edit popup menu in the editor */
+  if (event->button == 3)
+  {
+    gboolean can_goto;
 
-		/* ensure the editor widget has the focus after this operation */
-		gtk_widget_grab_focus(widget);
+    /* ensure the editor widget has the focus after this operation */
+    gtk_widget_grab_focus(widget);
 
-		editor_find_current_word(editor, editor_info.click_pos,
-			current_word, sizeof current_word, NULL);
+    editor_find_current_word(editor, editor_info.click_pos,
+      current_word, sizeof current_word, NULL);
 
-		can_goto = sci_has_selection(editor->sci) || current_word[0] != '\0';
-		ui_update_popup_goto_items(can_goto);
-		ui_update_popup_copy_items(doc);
-		ui_update_insert_include_item(doc, 0);
+    can_goto = sci_has_selection(editor->sci) || current_word[0] != '\0';
+    ui_update_popup_goto_items(can_goto);
+    ui_update_popup_copy_items(doc);
+    ui_update_insert_include_item(doc, 0);
 
-		g_signal_emit_by_name(geany_object, "update-editor-menu",
-			current_word, editor_info.click_pos, doc);
+    g_signal_emit_by_name(geany_object, "update-editor-menu",
+      current_word, editor_info.click_pos, doc);
 
-		gtk_menu_popup_at_pointer(GTK_MENU(main_widgets.editor_menu), (GdkEvent *) event);
-		return TRUE;
-	}
-	return FALSE;
+    gtk_menu_popup_at_pointer(GTK_MENU(main_widgets.editor_menu), (GdkEvent *) event);
+    return TRUE;
+  }
+  return FALSE;
 }
 
 

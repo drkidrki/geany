@@ -483,6 +483,7 @@ static void create_find_dialog(void)
   gtk_widget_set_size_request(button, MIN_DLG_BUTTON_SIZE, -1);
   gtk_dialog_add_action_widget(GTK_DIALOG(find_dlg.dialog), button,
     GEANY_RESPONSE_FIND);
+  gtk_dialog_set_default_response(GTK_DIALOG(find_dlg.dialog), GEANY_RESPONSE_FIND);
 
   label = gtk_label_new_with_mnemonic(_("Search _for:"));
   gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);

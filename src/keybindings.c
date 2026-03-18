@@ -381,6 +381,9 @@ static void init_default_kb(void)
 		ui_lookup_stock_label(GTK_STOCK_PROPERTIES), "project_properties1");
 	add_kb(group, GEANY_KEYS_PROJECT_CLOSE, NULL,
 		0, 0, "project_close", _("Close"), "project_close1");
+	add_kb(group, GEANY_KEYS_PROJECT_COLLAPSE_FILES_TREE, NULL,
+		GDK_KEY_backslash, GEANY_PRIMARY_MOD_MASK, "project_collapse_files_tree",
+		_("Collapse Project Files Tree"), NULL);
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_EDITOR);
 
@@ -1590,6 +1593,10 @@ static gboolean cb_func_project_action(guint key_id)
 		case GEANY_KEYS_PROJECT_PROPERTIES:
 			if (app->project)
 				on_project_properties1_activate(NULL, NULL);
+			break;
+		case GEANY_KEYS_PROJECT_COLLAPSE_FILES_TREE:
+			if (tv.tree_projectfiles != NULL)
+				gtk_tree_view_collapse_all(GTK_TREE_VIEW(tv.tree_projectfiles));
 			break;
 	}
 	return TRUE;

@@ -26,9 +26,6 @@
 /*        GLOBAL STATE           */
 /* ============================= */
 
-static XMLNode *g_xmlRoot = NULL;
-static XMLNode *g_xmlCurrent = NULL;
-
 static void xmlFreeNode(XMLNode *node);
 
 
@@ -175,17 +172,12 @@ XMLNode* xmlParseFile(const char *path)
 
     if (!f)
     {
-        xmlFreeTree(g_xmlRoot);
-        g_xmlRoot = NULL;
-        g_xmlCurrent = NULL;
         return NULL;
     }
 
     int c;
-
-    xmlFreeTree(g_xmlRoot);
-    g_xmlRoot = NULL;
-    g_xmlCurrent = NULL;
+    XMLNode *xmlRoot = NULL;
+    XMLNode *xmlCurrent = NULL;
 
     while ((c = fgetc(f)) != EOF)
     {
@@ -212,8 +204,8 @@ XMLNode* xmlParseFile(const char *path)
                 At this moment the node subtree is complete.
             */
 
-            if (g_xmlCurrent)
-                g_xmlCurrent = g_xmlCurrent->parent;
+            if (xmlCurrent)
+                xmlCurrent = xmlCurrent->parent;
         }
 
         /* ============================= */
@@ -253,15 +245,15 @@ XMLNode* xmlParseFile(const char *path)
                 Data can safely be read here.
             */
 
-            if (!g_xmlRoot)
-                g_xmlRoot = node;
+            if (!xmlRoot)
+                xmlRoot = node;
 
-            if (g_xmlCurrent)
-                xmlAddChild(g_xmlCurrent, node);
+            if (xmlCurrent)
+                xmlAddChild(xmlCurrent, node);
 
             if (!selfClosing)
             {
-                g_xmlCurrent = node;
+                xmlCurrent = node;
             }
             else
             {
@@ -276,7 +268,7 @@ XMLNode* xmlParseFile(const char *path)
 
     fclose(f);
 
-    return g_xmlRoot;
+    return xmlRoot;
 }
 
 

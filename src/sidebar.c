@@ -471,8 +471,7 @@ static void prepare_openfiles(void)
   gtk_tree_view_append_column(GTK_TREE_VIEW(tv.tree_openfiles), column);
   gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(tv.tree_openfiles), FALSE);
 
-  gtk_tree_view_set_search_column(GTK_TREE_VIEW(tv.tree_openfiles),
-    DOCUMENTS_SHORTNAME);
+  ui_tree_view_setup_typeahead_search(GTK_TREE_VIEW(tv.tree_openfiles), DOCUMENTS_SHORTNAME);
 
   ui_widget_modify_font_from_string(tv.tree_openfiles, interface_prefs.tagbar_font);
 
@@ -534,7 +533,7 @@ static void prepare_projectfiles(void)
   gtk_tree_view_append_column(GTK_TREE_VIEW(tv.tree_projectfiles), column);
   gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(tv.tree_projectfiles), FALSE);
 
-  gtk_tree_view_set_search_column(GTK_TREE_VIEW(tv.tree_projectfiles), DOCUMENTS_SHORTNAME);
+  ui_tree_view_setup_typeahead_search(GTK_TREE_VIEW(tv.tree_projectfiles), DOCUMENTS_SHORTNAME);
 
   ui_widget_modify_font_from_string(tv.tree_projectfiles, interface_prefs.tagbar_font);
 
@@ -1793,6 +1792,9 @@ static gboolean projectfiles_execute_selection(GtkWidget *widget, GtkTreeSelecti
 static gboolean sidebar_key_press_cb(GtkWidget *widget, GdkEventKey *event,
                        gpointer user_data)
 {
+  if (ui_tree_view_handle_typeahead_search_keypress(GTK_TREE_VIEW(widget), event))
+    return TRUE;
+
   may_steal_focus = FALSE;
   if (ui_is_keyval_enter_or_return(event->keyval) || event->keyval == GDK_KEY_space)
   {
@@ -1900,6 +1902,9 @@ static gboolean sidebar_button_press_cb(GtkWidget *widget, GdkEventButton *event
 
 static gboolean projectfiles_key_press_cb(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
 {
+  if (ui_tree_view_handle_typeahead_search_keypress(GTK_TREE_VIEW(widget), event))
+    return TRUE;
+
   // if this is an enter key
   if(ui_is_keyval_enter_or_return(event->keyval)) {
     /* force the TreeView handler to run before us for it to do its job (selection & stuff).

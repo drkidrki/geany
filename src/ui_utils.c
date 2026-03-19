@@ -1771,6 +1771,234 @@ static gboolean tree_view_find(GtkTreeView *treeview, TVMatchCallback cb, gboole
 	return TRUE;
 }
 
+typedef struct
+{
+	gint column;
+	gint64 last_key_time_us;
+	gchar *last_char;
+	gchar *last_prefix;
+}
+UiTreeViewTypeaheadState;
+
+
+static GQuark ui_tree_view_typeahead_state_quark(void)
+{
+	return g_quark_from_static_string("geany-ui-tree-view-typeahead-state");
+}
+
+
+static void ui_tree_view_typeahead_state_free(gpointer data)
+{
+	UiTreeViewTypeaheadState *state = data;
+
+	g_free(state->last_char);
+	g_free(state->last_prefix);
+	g_free(state);
+}
+
+
+static gboolean ui_tree_path_is_visible(GtkTreeView *treeview, GtkTreePath *path)
+{
+	gboolean visible = TRUE;
+	GtkTreePath *parent_path = gtk_tree_path_copy(path);
+
+	while (gtk_tree_path_get_depth(parent_path) > 1)
+	{
+		gtk_tree_path_up(parent_path);
+		if (!gtk_tree_view_row_expanded(treeview, parent_path))
+		{
+			visible = FALSE;
+			break;
+		}
+	}
+
+	gtk_tree_path_free(parent_path);
+	return visible;
+}
+
+
+static gboolean ui_tree_view_typeahead_search_is_repeat_candidate(const gchar *prefix)
+{
+	const gchar *p;
+	gunichar first_char;
+
+	if (EMPTY(prefix))
+		return FALSE;
+
+	first_char = g_utf8_get_char(prefix);
+	for (p = g_utf8_next_char(prefix); *p != '\0'; p = g_utf8_next_char(p))
+	{
+		if (g_utf8_get_char(p) != first_char)
+			return FALSE;
+	}
+	return TRUE;
+}
+
+
+static guint ui_tree_view_typeahead_find_current_match_index(GtkTreeView *treeview, GPtrArray *matches)
+{
+	GtkTreePath *cursor_path = NULL;
+	GtkTreeViewColumn *column = NULL;
+	guint i;
+
+	gtk_tree_view_get_cursor(treeview, &cursor_path, &column);
+	if (cursor_path == NULL)
+		return G_MAXUINT;
+
+	for (i = 0; i < matches->len; i++)
+	{
+		GtkTreePath *path = g_ptr_array_index(matches, i);
+
+		if (gtk_tree_path_compare(path, cursor_path) == 0)
+		{
+			gtk_tree_path_free(cursor_path);
+			return i;
+		}
+	}
+
+	gtk_tree_path_free(cursor_path);
+	return G_MAXUINT;
+}
+
+
+static void ui_tree_view_typeahead_select_path(GtkTreeView *treeview, GtkTreePath *path)
+{
+	GtkTreeSelection *selection = gtk_tree_view_get_selection(treeview);
+
+	gtk_tree_selection_unselect_all(selection);
+	gtk_tree_selection_select_path(selection, path);
+	gtk_tree_view_set_cursor(treeview, path, NULL, FALSE);
+	gtk_tree_view_scroll_to_cell(treeview, path, NULL, TRUE, 0.5f, 0.0f);
+}
+
+
+void ui_tree_view_setup_typeahead_search(GtkTreeView *treeview, gint column)
+{
+	UiTreeViewTypeaheadState *state;
+
+	g_return_if_fail(GTK_IS_TREE_VIEW(treeview));
+	g_return_if_fail(column >= 0);
+
+	state = g_new0(UiTreeViewTypeaheadState, 1);
+	state->column = column;
+	g_object_set_qdata_full(G_OBJECT(treeview), ui_tree_view_typeahead_state_quark(),
+		state, ui_tree_view_typeahead_state_free);
+	gtk_tree_view_set_search_column(treeview, column);
+	gtk_tree_view_set_enable_search(treeview, FALSE);
+}
+
+
+gboolean ui_tree_view_handle_typeahead_search_keypress(GtkTreeView *treeview, GdkEventKey *event)
+{
+	UiTreeViewTypeaheadState *state;
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	gboolean valid;
+	gchar key_utf8[8] = { 0 };
+	gunichar key_char;
+	gchar *folded_key;
+	gboolean repeat_key = FALSE;
+	gboolean expired = FALSE;
+	gboolean cycle_mode = FALSE;
+	gchar *search_prefix = NULL;
+	GPtrArray *matches;
+	guint i;
+	guint match_index = 0;
+
+	g_return_val_if_fail(GTK_IS_TREE_VIEW(treeview), FALSE);
+
+	state = g_object_get_qdata(G_OBJECT(treeview), ui_tree_view_typeahead_state_quark());
+	if (state == NULL || event == NULL)
+		return FALSE;
+
+	if ((event->state & gtk_accelerator_get_default_mod_mask()) != 0)
+		return FALSE;
+
+	key_char = gdk_keyval_to_unicode(event->keyval);
+	if (!g_unichar_isgraph(key_char))
+		return FALSE;
+
+	g_unichar_to_utf8(key_char, key_utf8);
+	folded_key = g_utf8_casefold(key_utf8, -1);
+	if (EMPTY(folded_key))
+	{
+		g_free(folded_key);
+		return FALSE;
+	}
+
+	if (!EMPTY(state->last_char) && utils_str_equal(state->last_char, folded_key))
+		repeat_key = TRUE;
+	expired = state->last_key_time_us == 0 || g_get_monotonic_time() - state->last_key_time_us > G_USEC_PER_SEC;
+
+	if (!expired)
+	{
+		if (repeat_key && ui_tree_view_typeahead_search_is_repeat_candidate(state->last_prefix))
+			cycle_mode = TRUE;
+		else
+			search_prefix = g_strconcat(state->last_prefix, folded_key, NULL);
+	}
+	else
+	{
+		if (repeat_key)
+			cycle_mode = TRUE;
+	}
+
+	if (search_prefix == NULL)
+		search_prefix = g_strdup(folded_key);
+
+	model = gtk_tree_view_get_model(treeview);
+	valid = gtk_tree_model_get_iter_first(model, &iter);
+	matches = g_ptr_array_new_with_free_func((GDestroyNotify) gtk_tree_path_free);
+
+	while (valid)
+	{
+		gchar *text = NULL;
+
+		gtk_tree_model_get(model, &iter, state->column, &text, -1);
+		if (!EMPTY(text))
+		{
+			gchar *folded_text = g_utf8_casefold(text, -1);
+
+			if (g_str_has_prefix(folded_text, search_prefix))
+			{
+				GtkTreePath *path = gtk_tree_model_get_path(model, &iter);
+
+				if (ui_tree_path_is_visible(treeview, path))
+					g_ptr_array_add(matches, path);
+				else
+					gtk_tree_path_free(path);
+			}
+			g_free(folded_text);
+		}
+		g_free(text);
+		valid = ui_tree_model_iter_any_next(model, &iter, TRUE);
+	}
+
+	if (matches->len > 0)
+	{
+		if (cycle_mode)
+		{
+			guint current_index = ui_tree_view_typeahead_find_current_match_index(treeview, matches);
+
+			if (current_index != G_MAXUINT)
+				match_index = (current_index + 1) % matches->len;
+		}
+
+		ui_tree_view_typeahead_select_path(treeview, g_ptr_array_index(matches, match_index));
+	}
+
+	SETPTR(state->last_char, g_strdup(folded_key));
+	SETPTR(state->last_prefix, g_strdup(search_prefix));
+	state->last_key_time_us = g_get_monotonic_time();
+
+	i = matches->len;
+	g_ptr_array_free(matches, TRUE);
+	g_free(search_prefix);
+	g_free(folded_key);
+
+	return i > 0;
+}
+
 
 /* Returns FALSE if the treeview has items but no matching next item. */
 gboolean ui_tree_view_find_next(GtkTreeView *treeview, TVMatchCallback cb)

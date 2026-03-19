@@ -350,6 +350,10 @@ gboolean ui_tree_view_find_previous(GtkTreeView *treeview, TVMatchCallback cb);
 
 gboolean ui_tree_model_iter_any_next(GtkTreeModel *model, GtkTreeIter *iter, gboolean down);
 
+void ui_tree_view_setup_typeahead_search(GtkTreeView *treeview, gint column);
+
+gboolean ui_tree_view_handle_typeahead_search_keypress(GtkTreeView *treeview, GdkEventKey *event);
+
 void ui_statusbar_showhide(gboolean state);
 
 void ui_toggle_editor_features(GeanyUIEditorFeatures feature);

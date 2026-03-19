@@ -1668,6 +1668,14 @@ static gboolean windows_dialog_key_press(GtkWidget *widget, GdkEventKey *event, 
   return FALSE;
 }
 
+static gboolean windows_dialog_tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
+{
+	if (ui_tree_view_handle_typeahead_search_keypress(GTK_TREE_VIEW(widget), event))
+		return TRUE;
+
+	return windows_dialog_key_press(widget, event, user_data);
+}
+
 static void windows_dialog_on_destroy(GtkWidget *widget, gpointer user_data)
 {
   GeanyWindowsDialogData *data = user_data;
@@ -1730,7 +1738,7 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
   gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree)),
     GTK_SELECTION_MULTIPLE);
   gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(data->tree), TRUE);
-  gtk_tree_view_set_search_column(GTK_TREE_VIEW(data->tree), WINDOWS_DIALOG_COLUMN_NAME);
+  ui_tree_view_setup_typeahead_search(GTK_TREE_VIEW(data->tree), WINDOWS_DIALOG_COLUMN_NAME);
 
   renderer = gtk_cell_renderer_text_new();
   column = gtk_tree_view_column_new_with_attributes(_("Filename"), renderer,
@@ -1752,6 +1760,7 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
   g_signal_connect(data->dialog, "key-press-event", G_CALLBACK(windows_dialog_key_press), data);
   g_signal_connect(data->mode_combo, "changed", G_CALLBACK(windows_dialog_mode_combo_changed), data);
   g_signal_connect(data->tree, "row-activated", G_CALLBACK(windows_dialog_row_activated), data);
+  g_signal_connect(data->tree, "key-press-event", G_CALLBACK(windows_dialog_tree_key_press), data);
 
   windows_dialog_reload(data);
   gtk_widget_show_all(data->dialog);

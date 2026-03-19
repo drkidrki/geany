@@ -1210,24 +1210,22 @@ static gboolean on_msgwin_button_press_event(GtkWidget *widget, GdkEventButton *
 											 gpointer user_data)
 {
 	/* user_data might be NULL, GPOINTER_TO_INT returns 0 if called with NULL */
-	gboolean double_click = event->type == GDK_2BUTTON_PRESS;
-
-	if (event->button == 1 && (event->type == GDK_BUTTON_RELEASE || double_click))
+	if (event->type == GDK_2BUTTON_PRESS)
 	{
 		switch (GPOINTER_TO_INT(user_data))
 		{
 			case MSG_COMPILER:
 			{	/* mouse click in the compiler treeview */
-				msgwin_goto_compiler_file_line(double_click);
+				msgwin_goto_compiler_file_line(true);
 				break;
 			}
 			case MSG_MESSAGE:
 			{	/* mouse click in the message treeview (results of 'Find usage') */
-				msgwin_goto_messages_file_line(double_click);
+				msgwin_goto_messages_file_line(true);
 				break;
 			}
 		}
-		return double_click;	/* TRUE prevents message window re-focusing */
+		return true;	/* TRUE prevents message window re-focusing */
 	}
 
 	if (event->button == 3)

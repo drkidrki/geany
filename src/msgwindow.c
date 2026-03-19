@@ -240,11 +240,6 @@ static void prepare_msg_tree_view(void)
 
 	ui_widget_modify_font_from_string(msgwindow.tree_msg, interface_prefs.msgwin_font);
 
-	/* use button-release-event so the selection has changed
-	 * (connect_after button-press-event doesn't work) */
-	g_signal_connect(msgwindow.tree_msg, "button-release-event",
-					G_CALLBACK(on_msgwin_button_press_event), GINT_TO_POINTER(MSG_MESSAGE));
-	/* for double-clicking only, after the first release */
 	g_signal_connect(msgwindow.tree_msg, "button-press-event",
 					G_CALLBACK(on_msgwin_button_press_event), GINT_TO_POINTER(MSG_MESSAGE));
 	g_signal_connect(msgwindow.tree_msg, "key-press-event",
@@ -277,11 +272,6 @@ static void prepare_compiler_tree_view(void)
 
 	ui_widget_modify_font_from_string(msgwindow.tree_compiler, interface_prefs.msgwin_font);
 
-	/* use button-release-event so the selection has changed
-	 * (connect_after button-press-event doesn't work) */
-	g_signal_connect(msgwindow.tree_compiler, "button-release-event",
-					G_CALLBACK(on_msgwin_button_press_event), GINT_TO_POINTER(MSG_COMPILER));
-	/* for double-clicking only, after the first release */
 	g_signal_connect(msgwindow.tree_compiler, "button-press-event",
 					G_CALLBACK(on_msgwin_button_press_event), GINT_TO_POINTER(MSG_COMPILER));
 	g_signal_connect(msgwindow.tree_compiler, "key-press-event",

@@ -1876,7 +1876,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
       {
         gchar *line_copy = g_strdup(line);
         g_strchomp(line_copy);
-        msgwin_msg_add(COLOR_BLACK, j + 1, doc, "%s:%d:%s", argv[i], j + 1, line_copy);
+        msgwin_msg_add(COLOR_BLACK, -1, NULL, "%s:%d:%s", argv[i], j + 1, line_copy);
         matches++;
         g_free(line_copy);
       }

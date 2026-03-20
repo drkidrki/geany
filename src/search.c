@@ -1842,8 +1842,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
     g_free(quoted);
   }
 
-  utf8_str = g_strdup_printf(_("Search for \"%s\" in directory: %s"),
-    utf8_search_text, utf8_dir);
+  utf8_str = g_strdup_printf(_("Search \"%s\" in \"%s\""), utf8_search_text, utf8_dir);
   msgwin_msg_add_string(COLOR_BLUE, -1, NULL, utf8_str);
   g_free(utf8_str);
 
@@ -1911,13 +1910,11 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
         "Search completed with %d matches.", matches),
       matches);
 
-    msgwin_msg_add_string(COLOR_BLUE, -1, NULL, text);
     ui_set_statusbar(FALSE, "%s", text);
     g_free(text);
   }
   else
   {
-    msgwin_msg_add_string(COLOR_BLUE, -1, NULL, _("No matches found."));
     ui_set_statusbar(FALSE, "%s", _("No matches found."));
   }
 

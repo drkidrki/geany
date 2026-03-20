@@ -1769,7 +1769,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
 
   dir = utils_get_locale_from_utf8(utf8_dir);
   // replace base path macro directory
-  if(app->project && g_strcmp0(dir, PROJECT_ROOT_TARGET_DIRECTORY) == 0) {
+  if(app->project && (g_strcmp0(dir, PROJECT_ROOT_TARGET_DIRECTORY)==0 || g_strcmp0(dir, PROJECT_FILES_TARGET_DIRECTORY)==0)) {
     g_free(dir);
     dir = g_strdup(app->project->base_path);
   }
@@ -1861,8 +1861,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
 
   for (i = 0; argv[i] != NULL; i++)
   {
-    gchar *locale_path = g_path_is_absolute(argv[i]) ? g_strdup(argv[i]) :
-      g_build_filename(dir, argv[i], NULL);
+    gchar *locale_path = g_build_filename(dir, argv[i], NULL);
     GeanyDocument *doc;
     gchar *utf8_path;
     gchar *contents;
@@ -1967,31 +1966,11 @@ static void search_collect_project_files(GeanyProjectItem *item, GSList *pattern
   g_return_if_fail(item != NULL);
   g_return_if_fail(results != NULL);
 
-  if (item->type == GEANY_PROJECT_ITEM_FILE && !EMPTY(item->path))
+  if (item->type == GEANY_PROJECT_ITEM_FILE && !EMPTY(item->rel_path))
   {
-    gboolean is_match = TRUE;
-
-    if (patterns != NULL)
-    {
-      gchar *basename;
-      const gchar *path = item->path;
-      const gchar *project_path = path;
-
-      if (app->project != NULL && !EMPTY(app->project->base_path) &&
-        g_str_has_prefix(path, app->project->base_path))
-      {
-        project_path = path + strlen(app->project->base_path);
-        if (G_IS_DIR_SEPARATOR(*project_path))
-          project_path++;
-      }
-      basename = g_path_get_basename(path);
-      is_match = pattern_list_match(patterns, project_path) ||
-        pattern_list_match(patterns, basename);
-      g_free(basename);
-    }
-
+    const gboolean is_match = patterns!=NULL ? pattern_list_match(patterns, item->rel_path) : TRUE;
     if (is_match)
-      g_queue_push_tail(results, g_strdup(item->path));
+      g_queue_push_tail(results, g_strdup(item->rel_path));
 
     return;
   }

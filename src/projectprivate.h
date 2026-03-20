@@ -38,7 +38,8 @@ GeanyProjectItemType;
 typedef struct GeanyProjectItem
 {
 	gchar *name;
-	gchar *path;
+	gchar *rel_path;
+	gchar *abs_path;
 	GeanyProjectItemType type;
 	GPtrArray *children; /* GPtrArray<GeanyProjectItem *> */
 }

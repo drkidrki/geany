@@ -577,7 +577,7 @@ static void sidebar_projectfiles_add_items(GPtrArray *items, GtkTreeIter *parent
       DOCUMENTS_SHORTNAME, FALLBACK(item->name, ""),
       DOCUMENTS_DOCUMENT, NULL,
       DOCUMENTS_COLOR, NULL,
-      DOCUMENTS_FILENAME, FALLBACK(item->path, item->name),
+      DOCUMENTS_FILENAME, FALLBACK(item->abs_path, item->name),
       DOCUMENTS_FOLD, FALSE,
       DOCUMENTS_VISIBLE, TRUE,
       -1);

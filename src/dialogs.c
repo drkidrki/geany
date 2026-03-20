@@ -1432,7 +1432,7 @@ static void windows_dialog_collect_project_files(GeanyProjectItem *item, GPtrArr
   if (item->type == GEANY_PROJECT_ITEM_FILE)
   {
     GeanyWindowsDialogRow *row = g_new0(GeanyWindowsDialogRow, 1);
-    row->full_path = g_strdup(FALLBACK(item->path, ""));
+    row->full_path = g_strdup(FALLBACK(item->abs_path, ""));
     row->display_name = g_path_get_basename(row->full_path);
     row->display_path = windows_dialog_relative_to_project(row->full_path);
     row->opened = FALSE;

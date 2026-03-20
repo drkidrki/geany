@@ -1447,7 +1447,7 @@ void on_menu_decrease_indent1_activate(GtkMenuItem *menuitem, gpointer user_data
 void on_next_message1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
   if (! ui_tree_view_find_next(GTK_TREE_VIEW(msgwindow.tree_msg),
-    msgwin_goto_messages_file_line, TRUE))
+    msgwin_goto_messages_file_line, TRUE, TRUE))
     ui_set_statusbar(FALSE, _("No more message items."));
 }
 
@@ -1455,7 +1455,7 @@ void on_next_message1_activate(GtkMenuItem *menuitem, gpointer user_data)
 void on_previous_message1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
   if (! ui_tree_view_find_previous(GTK_TREE_VIEW(msgwindow.tree_msg),
-    msgwin_goto_messages_file_line, TRUE))
+    msgwin_goto_messages_file_line, TRUE, TRUE))
     ui_set_statusbar(FALSE, _("No more message items."));
 }
 

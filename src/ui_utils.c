@@ -1732,43 +1732,106 @@ static gboolean tree_model_iter_get_next(GtkTreeModel *model, GtkTreeIter *iter,
 
 /* note: the while loop might be more efficient when searching upwards if it
  * used tree paths instead of tree iters, but in practice it probably doesn't matter much. */
-static gboolean tree_view_find(GtkTreeView *treeview, TVMatchCallback cb, gboolean down, gboolean bFocus)
+static gboolean tree_view_find(GtkTreeView *treeview, TVMatchCallback cb, gboolean bDown, gboolean bFocus, gboolean bWrap)
 {
-	GtkTreeSelection *treesel;
-	GtkTreeIter iter;
-	GtkTreeModel *model;
+  GtkTreeSelection *treesel;
+  GtkTreeIter iter;
+  GtkTreeModel *model;
 
-	treesel = gtk_tree_view_get_selection(treeview);
-	if (gtk_tree_selection_get_selected(treesel, &model, &iter))
-	{
-		/* get the next selected item */
-		if (! tree_model_iter_get_next(model, &iter, down))
-			return FALSE;	/* no more items */
-	}
-	else	/* no selection */
-	{
-		if (! gtk_tree_model_get_iter_first(model, &iter))
-			return TRUE;	/* no items */
-	}
-	while (TRUE)
-	{
-		gtk_tree_selection_select_iter(treesel, &iter);
-		if (cb(bFocus))
-			break;	/* found next message */
-
-		if (! tree_model_iter_get_next(model, &iter, down))
-			return FALSE;	/* no more items */
-	}
-	/* scroll item in view */
-	if (ui_prefs.msgwindow_visible)
-	{
-		GtkTreePath *path = gtk_tree_model_get_path(
-			gtk_tree_view_get_model(treeview), &iter);
-
-		gtk_tree_view_scroll_to_cell(treeview, path, NULL, TRUE, 0.5, 0.5);
-		gtk_tree_path_free(path);
-	}
-	return TRUE;
+  // get current selection
+  treesel = gtk_tree_view_get_selection(treeview);
+  // if we have something selected
+  if (gtk_tree_selection_get_selected(treesel, &model, &iter)) {
+    // get next item
+    if (!tree_model_iter_get_next(model, &iter, bDown)) {
+      // fail if there is none and wrapping isn't allowed
+      if(!bWrap) {
+        return FALSE;
+      }
+      // if we're going down
+      if(bDown) {
+        // fetch first item
+        if (!gtk_tree_model_get_iter_first(model, &iter)) {
+          // fail if there is none
+          return TRUE;
+        }
+      // otherwise
+      } else {
+        // fetch last item
+        int ctChildren = gtk_tree_model_iter_n_children(model, NULL);
+        if(!gtk_tree_model_iter_nth_child(model, &iter, NULL, ctChildren-1)) {
+          // fail if there is none
+          return TRUE;
+        }
+      }
+    }
+  // if there is nothing selected
+  } else {
+    // if we're going down
+    if(bDown) {
+      // fetch first item
+      if (!gtk_tree_model_get_iter_first(model, &iter)) {
+        // fail if there is none
+        return TRUE;
+      }
+    // otherwise
+    } else {
+      // fetch last item
+      int ctChildren = gtk_tree_model_iter_n_children(model, NULL);
+      if(!gtk_tree_model_iter_nth_child(model, &iter, NULL, ctChildren-1)) {
+        // fail if there is none
+        return TRUE;
+      }
+    }
+  }
+  // until finished
+  gboolean bWrapped = FALSE;
+  while(TRUE) {
+    // select item
+    gtk_tree_selection_select_iter(treesel, &iter);
+    // call callback function and if accepted
+    if(cb(bFocus)) {
+      // we're done
+      break;
+    }
+    // fetch next item
+    if (!tree_model_iter_get_next(model, &iter, bDown)) {
+      // fail if there is none and wrapping isn't allowed
+      if(!bWrap) {
+        return FALSE;
+      }
+      // fail if we already wrapped one
+      if(bWrapped) {
+        return FALSE;
+      }
+      // if we're going down
+      if(bDown) {
+        // fetch first item
+        if (!gtk_tree_model_get_iter_first(model, &iter)) {
+          // fail if there is none
+          return FALSE;
+        }
+      // otherwise
+      } else {
+        // fetch last item
+        int ctChildren = gtk_tree_model_iter_n_children(model, NULL);
+        if(!gtk_tree_model_iter_nth_child(model, &iter, NULL, ctChildren-1)) {
+          // fail if there is none
+          return FALSE;
+        }
+      }
+      // remember that we wrapped (prevent infinite loop)
+      bWrapped = TRUE;
+    }
+  }
+  // scroll item in view
+  if (ui_prefs.msgwindow_visible) {
+    GtkTreePath *path = gtk_tree_model_get_path(gtk_tree_view_get_model(treeview), &iter);
+    gtk_tree_view_scroll_to_cell(treeview, path, NULL, TRUE, 0.5, 0.5);
+    gtk_tree_path_free(path);
+  }
+  // all done
+  return TRUE;
 }
 
 typedef struct
@@ -2001,16 +2064,16 @@ gboolean ui_tree_view_handle_typeahead_search_keypress(GtkTreeView *treeview, Gd
 
 
 /* Returns FALSE if the treeview has items but no matching next item. */
-gboolean ui_tree_view_find_next(GtkTreeView *treeview, TVMatchCallback cb, gboolean bFocus)
+gboolean ui_tree_view_find_next(GtkTreeView *treeview, TVMatchCallback cb, gboolean bFocus, gboolean bWrap)
 {
-	return tree_view_find(treeview, cb, TRUE, bFocus);
+	return tree_view_find(treeview, cb, TRUE, bFocus, bWrap);
 }
 
 
 /* Returns FALSE if the treeview has items but no matching next item. */
-gboolean ui_tree_view_find_previous(GtkTreeView *treeview, TVMatchCallback cb, gboolean bFocus)
+gboolean ui_tree_view_find_previous(GtkTreeView *treeview, TVMatchCallback cb, gboolean bFocus, gboolean bWrap)
 {
-	return tree_view_find(treeview, cb, FALSE, bFocus);
+	return tree_view_find(treeview, cb, FALSE, bFocus, bWrap);
 }
 
 

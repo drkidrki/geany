@@ -298,9 +298,21 @@ static void on_widget_toggled_set_insensitive(
 static gboolean
 on_find_dialog_option_key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
 {
-  if (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter)
+  if (ui_is_keyval_enter(event->keyval))
   {
     gtk_dialog_response(GTK_DIALOG(find_dlg.dialog), GEANY_RESPONSE_FIND);
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+static gboolean
+on_dialog_activate_response_on_enter(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
+{
+  if (ui_is_keyval_enter(event->keyval))
+  {
+    gtk_dialog_response(GTK_DIALOG(widget), GPOINTER_TO_INT(user_data));
     return TRUE;
   }
   return FALSE;
@@ -522,6 +534,8 @@ static void create_find_dialog(void)
       G_CALLBACK(on_find_entry_activate_backward), entry);
   g_signal_connect(find_dlg.dialog, "response",
       G_CALLBACK(on_find_dialog_response), entry);
+  g_signal_connect(find_dlg.dialog, "key-press-event",
+      G_CALLBACK(on_dialog_activate_response_on_enter), GINT_TO_POINTER(GEANY_RESPONSE_FIND));
   g_signal_connect(find_dlg.dialog, "delete-event",
       G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 
@@ -1050,6 +1064,8 @@ static void create_fif_dialog(void)
 
   g_signal_connect(fif_dlg.dialog, "response",
       G_CALLBACK(on_find_in_files_dialog_response), NULL);
+  g_signal_connect(fif_dlg.dialog, "key-press-event",
+      G_CALLBACK(on_dialog_activate_response_on_enter), GINT_TO_POINTER(GTK_RESPONSE_ACCEPT));
   g_signal_connect(fif_dlg.dialog, "delete-event",
       G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 

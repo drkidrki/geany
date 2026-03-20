@@ -4752,7 +4752,7 @@ gboolean editor_goto_pos(GeanyEditor *editor, gint pos, gboolean mark)
 	}
 
 	sci_goto_pos(editor->sci, pos, TRUE);
-	editor->scroll_percent = 0.25F;
+	editor->scroll_percent = 0.5F;
 
 	/* switch to the page */
 	document_show_tab(editor->document);

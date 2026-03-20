@@ -54,6 +54,9 @@
 
 #define MIN_DLG_BUTTON_SIZE 130
 
+#define PROJECT_ROOT_TARGET_DIRECTORY "<Base path>"
+#define PROJECT_FILES_TARGET_DIRECTORY "<Project files>"
+
 enum
 {
   GEANY_RESPONSE_FIND = 1,
@@ -1122,8 +1125,8 @@ void search_show_find_in_files_dialog_full(const gchar *text, const gchar *dir)
    * (in create_fif_dialog() it would fail if a project is opened after dialog creation) */
   if (app->project != NULL && !EMPTY(app->project->base_path))
   {
-    ui_combo_box_prepend_text_once(GTK_COMBO_BOX_TEXT(fif_dlg.dir_combo),
-      app->project->base_path);
+    ui_combo_box_prepend_text_once(GTK_COMBO_BOX_TEXT(fif_dlg.dir_combo), PROJECT_ROOT_TARGET_DIRECTORY);
+    ui_combo_box_prepend_text_once(GTK_COMBO_BOX_TEXT(fif_dlg.dir_combo), PROJECT_FILES_TARGET_DIRECTORY);
   }
 
   entry = gtk_bin_get_child(GTK_BIN(fif_dlg.dir_combo));
@@ -1153,6 +1156,8 @@ void search_show_find_in_files_dialog_full(const gchar *text, const gchar *dir)
     {
       /* use default_open_path if no directory could be determined
        * (e.g. when no files are open) */
+      if (!cur_dir) 
+        cur_dir = g_strdup(PROJECT_ROOT_TARGET_DIRECTORY);
       if (!cur_dir)
         cur_dir = g_strdup(utils_get_default_dir_utf8());
       if (!cur_dir)
@@ -1713,7 +1718,7 @@ on_find_in_files_dialog_response(GtkDialog *dialog, gint response,
     GeanyEncodingIndex enc_idx =
       ui_encodings_combo_box_get_active_encoding(GTK_COMBO_BOX(fif_dlg.encoding_combo));
 
-    if (!g_file_test(locale_dir, G_FILE_TEST_IS_DIR))
+    if(g_strcmp0(locale_dir, PROJECT_ROOT_TARGET_DIRECTORY)!=0 && !g_file_test(locale_dir, G_FILE_TEST_IS_DIR))
     {
       ui_set_statusbar(FALSE, _("Invalid directory for Find in Files."));
       ui_set_search_entry_background(dir_combo, FALSE);
@@ -1760,6 +1765,11 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
   if (EMPTY(utf8_search_text) || ! utf8_dir) return TRUE;
 
   dir = utils_get_locale_from_utf8(utf8_dir);
+  // replace base path macro directory
+  if(app->project && g_strcmp0(dir, PROJECT_ROOT_TARGET_DIRECTORY) == 0) {
+    g_free(dir);
+    dir = g_strdup(app->project->base_path);
+  }
   patterns = get_fif_patterns();
   argv = search_get_argv(dir, patterns, settings.fif_recursive, NULL);
   if (argv == NULL)

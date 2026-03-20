@@ -205,6 +205,7 @@ static void prepare_status_tree_view(void)
 	g_object_unref(msgwindow.store_status);
 
 	renderer = gtk_cell_renderer_text_new();
+	g_object_set(renderer, "ypad", 0, NULL);
 	column = gtk_tree_view_column_new_with_attributes(_("Status messages"), renderer, "text", 0, NULL);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(msgwindow.tree_status), column);
 
@@ -232,6 +233,7 @@ static void prepare_msg_tree_view(void)
 	g_object_unref(msgwindow.store_msg);
 
 	renderer = gtk_cell_renderer_text_new();
+	g_object_set(renderer, "ypad", 0, NULL);
 	column = gtk_tree_view_column_new_with_attributes(NULL, renderer,
 		"foreground-gdk", MSG_COL_COLOR, "text", MSG_COL_STRING, NULL);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(msgwindow.tree_msg), column);
@@ -264,6 +266,7 @@ static void prepare_compiler_tree_view(void)
 	g_object_unref(msgwindow.store_compiler);
 
 	renderer = gtk_cell_renderer_text_new();
+	g_object_set(renderer, "ypad", 0, NULL);
 	column = gtk_tree_view_column_new_with_attributes(NULL, renderer,
 		"foreground-gdk", COMPILER_COL_COLOR, "text", COMPILER_COL_STRING, NULL);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(msgwindow.tree_compiler), column);

@@ -1158,7 +1158,7 @@ void search_show_find_in_files_dialog_full(const gchar *text, const gchar *dir)
       /* use default_open_path if no directory could be determined
        * (e.g. when no files are open) */
       if (!cur_dir) 
-        cur_dir = g_strdup(PROJECT_ROOT_TARGET_DIRECTORY);
+        cur_dir = g_strdup(PROJECT_FILES_TARGET_DIRECTORY);
       if (!cur_dir)
         cur_dir = g_strdup(utils_get_default_dir_utf8());
       if (!cur_dir)

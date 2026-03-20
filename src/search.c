@@ -37,6 +37,7 @@
 #include "keyfile.h"
 #include "msgwindow.h"
 #include "prefs.h"
+#include "projectprivate.h"
 #include "sciwrappers.h"
 #include "spawn.h"
 #include "stash.h"

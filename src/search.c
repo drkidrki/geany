@@ -298,7 +298,7 @@ static void on_widget_toggled_set_insensitive(
 static gboolean
 on_find_dialog_option_key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
 {
-  if (ui_is_keyval_enter(event->keyval))
+  if (ui_is_keyval_enter_or_return(event->keyval))
   {
     gtk_dialog_response(GTK_DIALOG(find_dlg.dialog), GEANY_RESPONSE_FIND);
     return TRUE;
@@ -310,7 +310,7 @@ on_find_dialog_option_key_pressed(GtkWidget *widget, GdkEventKey *event, gpointe
 static gboolean
 on_dialog_activate_response_on_enter(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
 {
-  if (ui_is_keyval_enter(event->keyval))
+  if (ui_is_keyval_enter_or_return(event->keyval))
   {
     gtk_dialog_response(GTK_DIALOG(widget), GPOINTER_TO_INT(user_data));
     return TRUE;

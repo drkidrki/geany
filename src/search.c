@@ -1718,7 +1718,9 @@ on_find_in_files_dialog_response(GtkDialog *dialog, gint response,
     GeanyEncodingIndex enc_idx =
       ui_encodings_combo_box_get_active_encoding(GTK_COMBO_BOX(fif_dlg.encoding_combo));
 
-    if(g_strcmp0(locale_dir, PROJECT_ROOT_TARGET_DIRECTORY)!=0 && !g_file_test(locale_dir, G_FILE_TEST_IS_DIR))
+    if(g_strcmp0(locale_dir, PROJECT_ROOT_TARGET_DIRECTORY) != 0 &&
+      g_strcmp0(locale_dir, PROJECT_FILES_TARGET_DIRECTORY) != 0 &&
+      !g_file_test(locale_dir, G_FILE_TEST_IS_DIR))
     {
       ui_set_statusbar(FALSE, _("Invalid directory for Find in Files."));
       ui_set_search_entry_background(dir_combo, FALSE);
@@ -1858,7 +1860,8 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
 
   for (i = 0; argv[i] != NULL; i++)
   {
-    gchar *locale_path = g_build_filename(dir, argv[i], NULL);
+    gchar *locale_path = g_path_is_absolute(argv[i]) ? g_strdup(argv[i]) :
+      g_build_filename(dir, argv[i], NULL);
     GeanyDocument *doc;
     gchar *utf8_path;
     gchar *contents;
@@ -1955,6 +1958,50 @@ static gboolean pattern_list_match(GSList *patterns, const gchar *str)
   return FALSE;
 }
 
+static void search_collect_project_files(GeanyProjectItem *item, GSList *patterns,
+  GQueue *results)
+{
+  guint i;
+
+  g_return_if_fail(item != NULL);
+  g_return_if_fail(results != NULL);
+
+  if (item->type == GEANY_PROJECT_ITEM_FILE && !EMPTY(item->path))
+  {
+    gboolean is_match = TRUE;
+
+    if (patterns != NULL)
+    {
+      gchar *basename;
+      const gchar *path = item->path;
+      const gchar *project_path = path;
+
+      if (app->project != NULL && !EMPTY(app->project->base_path) &&
+        g_str_has_prefix(path, app->project->base_path))
+      {
+        project_path = path + strlen(app->project->base_path);
+        if (G_IS_DIR_SEPARATOR(*project_path))
+          project_path++;
+      }
+      basename = g_path_get_basename(path);
+      is_match = pattern_list_match(patterns, project_path) ||
+        pattern_list_match(patterns, basename);
+      g_free(basename);
+    }
+
+    if (is_match)
+      g_queue_push_tail(results, g_strdup(item->path));
+
+    return;
+  }
+
+  if (item->children == NULL)
+    return;
+
+  for (i = 0; i < item->children->len; i++)
+    search_collect_project_files(g_ptr_array_index(item->children, i), patterns, results);
+}
+
 
 /* Creates an argument vector of strings, copying argv_prefix[] values for
  * the first arguments, then followed by filenames found in dir.
@@ -1972,54 +2019,68 @@ static gchar **search_get_argv(const gchar *dir, GSList *patterns, gboolean recu
 
   g_return_val_if_fail(dir != NULL, NULL);
 
-  g_queue_push_tail(&queue, g_strdup(""));
-  while ((queue_item = g_queue_pop_head_link(&queue)) != NULL)
+  if (utils_str_equal(dir, PROJECT_FILES_TARGET_DIRECTORY))
   {
-    gchar *sub = queue_item->data;
-    gchar *scan_dir = (*sub == '\0') ? g_strdup(dir) : g_build_filename(dir, sub, NULL);
+    GeanyProjectItem *project_root = NULL;
 
-    g_list_free_1(queue_item);
-    list = utils_get_file_list(scan_dir, &file_list_len, &error);
-    if (error)
+    if (app->project != NULL && app->project->priv != NULL)
+      project_root = app->project->priv->project_root;
+    if (project_root == NULL)
+      return NULL;
+
+    search_collect_project_files(project_root, patterns, &results);
+  }
+  else
+  {
+    g_queue_push_tail(&queue, g_strdup(""));
+    while ((queue_item = g_queue_pop_head_link(&queue)) != NULL)
     {
-      ui_set_statusbar(TRUE, _("Could not open directory (%s)"), error->message);
-      g_error_free(error);
+      gchar *sub = queue_item->data;
+      gchar *scan_dir = (*sub == '\0') ? g_strdup(dir) : g_build_filename(dir, sub, NULL);
+
+      g_list_free_1(queue_item);
+      list = utils_get_file_list(scan_dir, &file_list_len, &error);
+      if (error)
+      {
+        ui_set_statusbar(TRUE, _("Could not open directory (%s)"), error->message);
+        g_error_free(error);
+        g_free(scan_dir);
+        g_free(sub);
+        g_queue_foreach(&queue, (GFunc) g_free, NULL);
+        g_queue_clear(&queue);
+        g_queue_foreach(&results, (GFunc) g_free, NULL);
+        g_queue_clear(&results);
+        return NULL;
+      }
+
+      foreach_slist(item, list)
+      {
+        gchar *name = item->data;
+        gchar *relative = (*sub == '\0') ? g_strdup(name) : g_build_filename(sub, name, NULL);
+        gchar *full = g_build_filename(dir, relative, NULL);
+
+        if (g_file_test(full, G_FILE_TEST_IS_DIR))
+        {
+          if (recursive)
+            g_queue_push_tail(&queue, relative);
+          else
+            g_free(relative);
+        }
+        else
+        {
+          if (!patterns || pattern_list_match(patterns, relative))
+            g_queue_push_tail(&results, relative);
+          else
+            g_free(relative);
+        }
+
+        g_free(full);
+        g_free(name);
+      }
+      g_slist_free(list);
       g_free(scan_dir);
       g_free(sub);
-      g_queue_foreach(&queue, (GFunc) g_free, NULL);
-      g_queue_clear(&queue);
-      g_queue_foreach(&results, (GFunc) g_free, NULL);
-      g_queue_clear(&results);
-      return NULL;
     }
-
-    foreach_slist(item, list)
-    {
-      gchar *name = item->data;
-      gchar *relative = (*sub == '\0') ? g_strdup(name) : g_build_filename(sub, name, NULL);
-      gchar *full = g_build_filename(dir, relative, NULL);
-
-      if (g_file_test(full, G_FILE_TEST_IS_DIR))
-      {
-        if (recursive)
-          g_queue_push_tail(&queue, relative);
-        else
-          g_free(relative);
-      }
-      else
-      {
-        if (!patterns || pattern_list_match(patterns, relative))
-          g_queue_push_tail(&results, relative);
-        else
-          g_free(relative);
-      }
-
-      g_free(full);
-      g_free(name);
-    }
-    g_slist_free(list);
-    g_free(scan_dir);
-    g_free(sub);
   }
 
   if (results.length == 0)

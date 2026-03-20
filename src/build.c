@@ -884,7 +884,7 @@ static void build_run_cmd(GeanyDocument *doc, guint cmdindex)
 		/* show the VTE */
 		gtk_notebook_set_current_page(GTK_NOTEBOOK(msgwindow.notebook), MSG_VTE);
 		gtk_widget_grab_focus(vte_config.vte);
-		msgwin_show_hide(TRUE);
+		msgwin_show_hide(TRUE, FALSE);
 
 		run_info[cmdindex].pid = 1;
 		g_free(vte_cmd);
@@ -1045,7 +1045,7 @@ static void show_build_result_message(gboolean failure)
 		if (! ui_prefs.msgwindow_visible)
 		{
 			gtk_notebook_set_current_page(GTK_NOTEBOOK(msgwindow.notebook), MSG_COMPILER);
-			msgwin_show_hide(TRUE);
+			msgwin_show_hide(TRUE, FALSE);
 		}
 		else
 		if (gtk_notebook_get_current_page(GTK_NOTEBOOK(msgwindow.notebook)) != MSG_COMPILER)
@@ -1632,7 +1632,7 @@ static void kill_process(GPid *pid)
 static void on_build_next_error(GtkWidget *menuitem, gpointer user_data)
 {
 	if (ui_tree_view_find_next(GTK_TREE_VIEW(msgwindow.tree_compiler),
-		msgwin_goto_compiler_file_line))
+		msgwin_goto_compiler_file_line, FALSE))
 	{
 		gtk_notebook_set_current_page(GTK_NOTEBOOK(msgwindow.notebook), MSG_COMPILER);
 	}
@@ -1644,7 +1644,7 @@ static void on_build_next_error(GtkWidget *menuitem, gpointer user_data)
 static void on_build_previous_error(GtkWidget *menuitem, gpointer user_data)
 {
 	if (ui_tree_view_find_previous(GTK_TREE_VIEW(msgwindow.tree_compiler),
-		msgwin_goto_compiler_file_line))
+		msgwin_goto_compiler_file_line, FALSE))
 	{
 		gtk_notebook_set_current_page(GTK_NOTEBOOK(msgwindow.notebook), MSG_COMPILER);
 	}

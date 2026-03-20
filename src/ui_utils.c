@@ -1732,7 +1732,7 @@ static gboolean tree_model_iter_get_next(GtkTreeModel *model, GtkTreeIter *iter,
 
 /* note: the while loop might be more efficient when searching upwards if it
  * used tree paths instead of tree iters, but in practice it probably doesn't matter much. */
-static gboolean tree_view_find(GtkTreeView *treeview, TVMatchCallback cb, gboolean down)
+static gboolean tree_view_find(GtkTreeView *treeview, TVMatchCallback cb, gboolean down, gboolean bFocus)
 {
 	GtkTreeSelection *treesel;
 	GtkTreeIter iter;
@@ -1753,7 +1753,7 @@ static gboolean tree_view_find(GtkTreeView *treeview, TVMatchCallback cb, gboole
 	while (TRUE)
 	{
 		gtk_tree_selection_select_iter(treesel, &iter);
-		if (cb(FALSE))
+		if (cb(bFocus))
 			break;	/* found next message */
 
 		if (! tree_model_iter_get_next(model, &iter, down))
@@ -2001,16 +2001,16 @@ gboolean ui_tree_view_handle_typeahead_search_keypress(GtkTreeView *treeview, Gd
 
 
 /* Returns FALSE if the treeview has items but no matching next item. */
-gboolean ui_tree_view_find_next(GtkTreeView *treeview, TVMatchCallback cb)
+gboolean ui_tree_view_find_next(GtkTreeView *treeview, TVMatchCallback cb, gboolean bFocus)
 {
-	return tree_view_find(treeview, cb, TRUE);
+	return tree_view_find(treeview, cb, TRUE, bFocus);
 }
 
 
 /* Returns FALSE if the treeview has items but no matching next item. */
-gboolean ui_tree_view_find_previous(GtkTreeView *treeview, TVMatchCallback cb)
+gboolean ui_tree_view_find_previous(GtkTreeView *treeview, TVMatchCallback cb, gboolean bFocus)
 {
-	return tree_view_find(treeview, cb, FALSE);
+	return tree_view_find(treeview, cb, FALSE, bFocus);
 }
 
 

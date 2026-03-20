@@ -1004,7 +1004,7 @@ void vte_send_selection_to_vte(void)
 	/* show the VTE */
 	gtk_notebook_set_current_page(GTK_NOTEBOOK(msgwindow.notebook), MSG_VTE);
 	gtk_widget_grab_focus(vte_config.vte);
-	msgwin_show_hide(TRUE);
+	msgwin_show_hide(TRUE, FALSE);
 
 	g_free(text);
 }

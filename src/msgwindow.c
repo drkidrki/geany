@@ -362,17 +362,23 @@ void msgwin_compiler_add_string(gint msg_color, const gchar *msg)
 }
 
 
-void msgwin_show_hide(gboolean show)
+void msgwin_show_hide(gboolean bShow, gboolean bFocus)
 {
-	ui_prefs.msgwindow_visible = show;
-	ignore_callback = TRUE;
-	gtk_check_menu_item_set_active(
-		GTK_CHECK_MENU_ITEM(ui_lookup_widget(main_widgets.window, "menu_show_messages_window1")),
-		show);
-	ignore_callback = FALSE;
-	ui_widget_show_hide(main_widgets.message_window_notebook, show);
-	/* set the input focus back to the editor */
-	keybindings_send_command(GEANY_KEY_GROUP_FOCUS, GEANY_KEYS_FOCUS_EDITOR);
+  ui_prefs.msgwindow_visible = bShow;
+  ignore_callback = TRUE;
+  gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(ui_lookup_widget(main_widgets.window, "menu_show_messages_window1")), bShow);
+  ignore_callback = FALSE;
+  if(bShow) {
+    gtk_widget_show(main_widgets.message_window_notebook);
+    if(bFocus) {
+      gtk_widget_grab_focus(msgwindow.tree_msg);
+    }
+  } else {
+    gtk_widget_hide(main_widgets.message_window_notebook);
+    if(bFocus) {
+      keybindings_send_command(GEANY_KEY_GROUP_FOCUS, GEANY_KEYS_FOCUS_EDITOR);
+    }
+  }
 }
 
 
@@ -432,7 +438,7 @@ void msgwin_msg_add_string(gint msg_color, gint line, GeanyDocument *doc, const 
 	gchar *utf8_msg;
 
 	if (! ui_prefs.msgwindow_visible)
-		msgwin_show_hide(TRUE);
+		msgwin_show_hide(TRUE, FALSE);
 
 	/* work around a strange problem when adding very long lines(greater than 4000 bytes)
 	 * cut the string to a maximum of 1024 bytes and discard the rest */
@@ -632,7 +638,7 @@ static void on_compiler_treeview_copy_all_activate(GtkMenuItem *menuitem, gpoint
 static void
 on_hide_message_window(GtkMenuItem *menuitem, gpointer user_data)
 {
-	msgwin_show_hide(FALSE);
+	msgwin_show_hide(FALSE, FALSE);
 }
 
 
@@ -1277,7 +1283,7 @@ void msgwin_switch_tab(gint tabnum, gboolean show)
 	/* the msgwin must be visible before we switch to the VTE page so that
 	 * the font settings are applied on realization */
 	if (show)
-		msgwin_show_hide(TRUE);
+		msgwin_show_hide(TRUE, FALSE);
 	gtk_notebook_set_current_page(GTK_NOTEBOOK(msgwindow.notebook), tabnum);
 	if (show && widget)
 		gtk_widget_grab_focus(widget);

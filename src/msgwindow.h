@@ -93,7 +93,7 @@ void msgwin_init(void);
 
 void msgwin_finalize(void);
 
-void msgwin_show_hide(gboolean show);
+void msgwin_show_hide(gboolean bShow, gboolean bFocus);
 
 void msgwin_show_hide_tabs(void);
 

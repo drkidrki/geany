@@ -344,9 +344,9 @@ void ui_update_tab_status(GeanyDocument *doc);
 
 typedef gboolean TVMatchCallback(gboolean);
 
-gboolean ui_tree_view_find_next(GtkTreeView *treeview, TVMatchCallback cb);
+gboolean ui_tree_view_find_next(GtkTreeView *treeview, TVMatchCallback cb, gboolean bFocus);
 
-gboolean ui_tree_view_find_previous(GtkTreeView *treeview, TVMatchCallback cb);
+gboolean ui_tree_view_find_previous(GtkTreeView *treeview, TVMatchCallback cb, gboolean bFocus);
 
 gboolean ui_tree_model_iter_any_next(GtkTreeModel *model, GtkTreeIter *iter, gboolean down);
 

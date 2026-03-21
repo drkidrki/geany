@@ -610,6 +610,11 @@ void search_show_find_dialog(void)
   gchar *sel = NULL;
 
   g_return_if_fail(doc != NULL);
+  
+  // first select current word (prevents find action to first find word under cursor)
+  if(search_prefs.use_current_word) {
+    editor_select_word(doc->editor);
+  }
 
   sel = editor_get_default_selection(doc->editor, search_prefs.use_current_word, NULL);
 

@@ -2302,7 +2302,7 @@ gint document_find_text(GeanyDocument *doc, const gchar *text, const gchar *orig
 		sci_ensure_line_is_visible(doc->editor->sci,
 			sci_get_line_from_position(doc->editor->sci, search_pos));
 		if (scroll)
-			doc->editor->scroll_percent = 0.3F;
+			doc->editor->scroll_percent = 0.5F;
 	}
 	else
 	{

@@ -472,7 +472,7 @@ void search_find_selection(GeanyDocument *doc, gboolean search_backwards)
     setup_find_next(s); /* allow find next/prev */
 
     if (document_find_text(doc, s, NULL, 0, search_backwards, NULL, FALSE) > -1)
-      editor_display_current_line(doc->editor, 0.3F);
+      editor_display_current_line(doc->editor, 0.5F);
     g_free(s);
   }
   else if (search_prefs.find_selection_type == GEANY_FIND_SEL_AGAIN)
@@ -2476,7 +2476,7 @@ void search_find_again(gboolean change_direction)
       change_direction ? forward : !forward, NULL, FALSE);
 
     if (result > -1)
-      editor_display_current_line(doc->editor, 0.3F);
+      editor_display_current_line(doc->editor, 0.5F);
 
     if (search_data.search_bar)
       ui_set_search_entry_background(

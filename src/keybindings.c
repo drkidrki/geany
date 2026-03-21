@@ -2032,7 +2032,11 @@ static void goto_matching_brace(GeanyDocument *doc)
   if (new_pos != -1)
   { /* set the cursor at/after the brace */
     sci_set_current_position(doc->editor->sci, new_pos + (!after_brace), FALSE);
-    editor_display_current_line(doc->editor, 0.5F);
+    if(new_pos>pos) {
+      editor_display_current_line(doc->editor, 0.99F);
+    } else {
+      editor_display_current_line(doc->editor, 0.01F);
+    }
   }
 }
 

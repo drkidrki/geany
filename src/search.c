@@ -1453,7 +1453,9 @@ on_find_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
       case GEANY_RESPONSE_FIND_PREVIOUS:
       {
         gint result = document_find_text(doc, search_data.text, search_data.original_text, search_data.flags,
-          (response == GEANY_RESPONSE_FIND_PREVIOUS), NULL, TRUE);
+          (response == GEANY_RESPONSE_FIND_PREVIOUS), NULL, FALSE);
+        if (result > -1)
+          editor_display_current_line(doc->editor, 0.5F);
         ui_set_search_entry_background(find_dlg.entry, (result > -1));
         check_close = search_prefs.hide_find_dialog;
         break;

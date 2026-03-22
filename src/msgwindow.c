@@ -40,6 +40,7 @@
 #include "main.h"
 #include "navqueue.h"
 #include "prefs.h"
+#include "sciwrappers.h"
 #include "support.h"
 #include "ui_utils.h"
 #include "utils.h"

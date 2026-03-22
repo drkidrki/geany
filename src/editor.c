@@ -4742,17 +4742,17 @@ gboolean editor_goto_pos(GeanyEditor *editor, gint pos, gboolean mark)
 	if (G_UNLIKELY(pos < 0))
 		return FALSE;
 
+	gint line = sci_get_line_from_position(editor->sci, pos);
 	if (mark)
 	{
-		gint line = sci_get_line_from_position(editor->sci, pos);
-
 		/* mark the tag with the yellow arrow */
 		sci_marker_delete_all(editor->sci, 0);
 		sci_set_marker_at_line(editor->sci, line, 0);
 	}
 
+	if (! editor_line_in_view(editor, line))
+		editor->scroll_percent = 0.5F;
 	sci_goto_pos(editor->sci, pos, TRUE);
-	editor->scroll_percent = 0.5F;
 
 	/* switch to the page */
 	document_show_tab(editor->document);

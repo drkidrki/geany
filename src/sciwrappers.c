@@ -627,6 +627,19 @@ gint sci_get_line_end_position(ScintillaObject *sci, gint line)
 
 void sci_cut(ScintillaObject *sci)
 {
+	if (SSM(sci, SCI_GETSELECTIONSTART, 0, 0) == SSM(sci, SCI_GETSELECTIONEND, 0, 0))
+	{
+		gint line;
+		gint line_start;
+		gint line_end;
+
+		line = (gint) SSM(sci, SCI_LINEFROMPOSITION, SSM(sci, SCI_GETCURRENTPOS, 0, 0), 0);
+		line_start = (gint) SSM(sci, SCI_POSITIONFROMLINE, (uptr_t) line, 0);
+		line_end = (gint) SSM(sci, SCI_POSITIONFROMLINE, (uptr_t) (line + 1), 0);
+		if (line_end < 0)
+			line_end = (gint) SSM(sci, SCI_GETLENGTH, 0, 0);
+		SSM(sci, SCI_SETSEL, (uptr_t) line_start, line_end);
+	}
 	SSM(sci, SCI_CUT, 0, 0);
 }
 

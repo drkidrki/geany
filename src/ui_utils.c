@@ -2141,9 +2141,11 @@ void ui_tree_view_set_tooltip_text_column(GtkTreeView *tree_view, gint column)
 
 
 /**
- * Disables smooth scrolling effects for the scrolled window containing a tree view.
+ * Disables scroll animations for the scrolled window containing a tree view.
  *
- * This disables kinetic and overlay scrolling on the ancestor GtkScrolledWindow, if any.
+ * This disables overlay scrolling on the ancestor GtkScrolledWindow, if any, and applies a
+ * widget-specific CSS class that disables GTK animations/transitions for that scrolled window
+ * subtree. Kinetic scrolling is intentionally left unchanged.
  *
  * @param tree_view The tree view whose scrolling behavior should be adjusted.
  */
@@ -2154,10 +2156,32 @@ void ui_tree_view_disable_smooth_scrolling(GtkTreeView *tree_view)
 
 	GtkWidget *scrolled_window = gtk_widget_get_ancestor(GTK_WIDGET(tree_view), GTK_TYPE_SCROLLED_WINDOW);
 	g_assert(scrolled_window != NULL);
-	gtk_scrolled_window_set_kinetic_scrolling(GTK_SCROLLED_WINDOW(scrolled_window), FALSE);
 #if GTK_CHECK_VERSION(3, 16, 0)
 	gtk_scrolled_window_set_overlay_scrolling(GTK_SCROLLED_WINDOW(scrolled_window), FALSE);
 #endif
+
+	static GtkCssProvider *no_scroll_animations_provider = NULL;
+	if (G_UNLIKELY(no_scroll_animations_provider == NULL))
+	{
+		const gchar *no_scroll_animations_css =
+			".geany-no-scroll-animations,\n"
+			".geany-no-scroll-animations * {\n"
+			"  transition-property: none;\n"
+			"  transition-duration: 0s;\n"
+			"  animation-name: none;\n"
+			"  animation-duration: 0s;\n"
+			"}\n";
+
+		no_scroll_animations_provider = gtk_css_provider_new();
+		gtk_css_provider_load_from_data(no_scroll_animations_provider,
+			no_scroll_animations_css, -1, NULL);
+		gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
+			GTK_STYLE_PROVIDER(no_scroll_animations_provider),
+			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+	}
+
+	gtk_style_context_add_class(gtk_widget_get_style_context(scrolled_window),
+		"geany-no-scroll-animations");
 }
 
 

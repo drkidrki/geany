@@ -1335,6 +1335,8 @@ typedef struct GeanyWindowsDialogData
   GtkWidget *mode_combo;
   GtkListStore *store;
   GeanyWindowsDialogMode mode;
+  gchar *last_opened_selected_path;
+  gchar *last_project_selected_path;
 }
 GeanyWindowsDialogData;
 
@@ -1602,6 +1604,23 @@ static gchar *windows_dialog_get_selected_full_path(GeanyWindowsDialogData *data
   return selected_path;
 }
 
+static const gchar *windows_dialog_get_last_selected_path(GeanyWindowsDialogData *data,
+  GeanyWindowsDialogMode mode)
+{
+  return mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
+    data->last_opened_selected_path : data->last_project_selected_path;
+}
+
+static void windows_dialog_set_last_selected_path(GeanyWindowsDialogData *data,
+  GeanyWindowsDialogMode mode, const gchar *path)
+{
+  gchar **target = mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
+    &data->last_opened_selected_path : &data->last_project_selected_path;
+
+  g_free(*target);
+  *target = g_strdup(path);
+}
+
 static void windows_dialog_reload(GeanyWindowsDialogData *data, const gchar *preferred_path,
   gboolean fallback_to_current_doc, gboolean fallback_to_first)
 {
@@ -1666,14 +1685,24 @@ static void windows_dialog_reload(GeanyWindowsDialogData *data, const gchar *pre
 
 static void windows_dialog_toggle_mode(GeanyWindowsDialogData *data)
 {
+  GeanyWindowsDialogMode old_mode = data->mode;
+  GeanyWindowsDialogMode new_mode;
   gchar *selected_path = windows_dialog_get_selected_full_path(data);
+  const gchar *preferred_path;
 
-  data->mode = data->mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
+  if (!EMPTY(selected_path))
+    windows_dialog_set_last_selected_path(data, old_mode, selected_path);
+
+  new_mode = old_mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
     GEANY_WINDOWS_DIALOG_MODE_PROJECT_FILES : GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES;
+  preferred_path = !EMPTY(selected_path) ? selected_path :
+    windows_dialog_get_last_selected_path(data, new_mode);
+
+  data->mode = new_mode;
   gtk_combo_box_set_active(GTK_COMBO_BOX(data->mode_combo),
     data->mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
     WINDOWS_DIALOG_MODE_COMBO_OPENED_FILES : WINDOWS_DIALOG_MODE_COMBO_PROJECT_FILES);
-  windows_dialog_reload(data, selected_path, FALSE, FALSE);
+  windows_dialog_reload(data, preferred_path, FALSE, FALSE);
   g_free(selected_path);
 }
 
@@ -1721,6 +1750,8 @@ static void windows_dialog_on_destroy(GtkWidget *widget, gpointer user_data)
   GeanyWindowsDialogData *data = user_data;
   windows_dialog_store_free_rows(data->store);
   g_object_unref(data->store);
+  g_free(data->last_opened_selected_path);
+  g_free(data->last_project_selected_path);
   g_free(data);
 }
 
@@ -1733,15 +1764,23 @@ static void windows_dialog_row_activated(GtkTreeView *treeview, GtkTreePath *pat
 static void windows_dialog_mode_combo_changed(GtkComboBox *combo, gpointer user_data)
 {
   GeanyWindowsDialogData *data = user_data;
+  GeanyWindowsDialogMode old_mode = data->mode;
   GeanyWindowsDialogMode mode = gtk_combo_box_get_active(combo) == WINDOWS_DIALOG_MODE_COMBO_PROJECT_FILES ?
     GEANY_WINDOWS_DIALOG_MODE_PROJECT_FILES : GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES;
+  gchar *selected_path;
+  const gchar *preferred_path;
 
   if (mode == data->mode)
     return;
 
-  gchar *selected_path = windows_dialog_get_selected_full_path(data);
+  selected_path = windows_dialog_get_selected_full_path(data);
+  if (!EMPTY(selected_path))
+    windows_dialog_set_last_selected_path(data, old_mode, selected_path);
+  preferred_path = !EMPTY(selected_path) ? selected_path :
+    windows_dialog_get_last_selected_path(data, mode);
+
   data->mode = mode;
-  windows_dialog_reload(data, selected_path, FALSE, FALSE);
+  windows_dialog_reload(data, preferred_path, FALSE, FALSE);
   g_free(selected_path);
 }
 

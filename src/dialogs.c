@@ -1335,6 +1335,8 @@ typedef struct GeanyWindowsDialogData
   GtkWidget *mode_combo;
   GtkListStore *store;
   GeanyWindowsDialogMode mode;
+  gchar *last_opened_selected_path;
+  gchar *last_project_selected_path;
 }
 GeanyWindowsDialogData;
 
@@ -1576,13 +1578,57 @@ static void windows_dialog_update_title(GeanyWindowsDialogData *data)
   g_free(title);
 }
 
-static void windows_dialog_reload(GeanyWindowsDialogData *data)
+static gchar *windows_dialog_get_selected_full_path(GeanyWindowsDialogData *data)
+{
+  GtkTreeSelection *selection;
+  GtkTreeModel *model = NULL;
+  GList *selected_paths;
+  gchar *selected_path = NULL;
+
+  selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree));
+  selected_paths = gtk_tree_selection_get_selected_rows(selection, &model);
+  if (selected_paths != NULL)
+  {
+    GtkTreePath *path = selected_paths->data;
+    GtkTreeIter iter;
+    GeanyWindowsDialogRow *row = NULL;
+
+    if (gtk_tree_model_get_iter(model, &iter, path))
+    {
+      gtk_tree_model_get(model, &iter, WINDOWS_DIALOG_COLUMN_ROW, &row, -1);
+      if (row != NULL && !EMPTY(row->full_path))
+        selected_path = g_strdup(row->full_path);
+    }
+  }
+  g_list_free_full(selected_paths, (GDestroyNotify) gtk_tree_path_free);
+  return selected_path;
+}
+
+static const gchar *windows_dialog_get_last_selected_path(GeanyWindowsDialogData *data,
+  GeanyWindowsDialogMode mode)
+{
+  return mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
+    data->last_opened_selected_path : data->last_project_selected_path;
+}
+
+static void windows_dialog_set_last_selected_path(GeanyWindowsDialogData *data,
+  GeanyWindowsDialogMode mode, const gchar *path)
+{
+  gchar **target = mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
+    &data->last_opened_selected_path : &data->last_project_selected_path;
+
+  g_free(*target);
+  *target = g_strdup(path);
+}
+
+static void windows_dialog_reload(GeanyWindowsDialogData *data, const gchar *preferred_path,
+  gboolean fallback_to_current_doc, gboolean fallback_to_first)
 {
   GPtrArray *rows;
   GtkTreeIter iter;
-  GtkTreeIter current_iter;
+  GtkTreeIter select_iter;
   guint i;
-  gboolean current_iter_set = FALSE;
+  gboolean select_iter_set = FALSE;
   GeanyDocument *current_doc = document_get_current();
   const gchar *current_path = current_doc ? current_doc->real_path : NULL;
 
@@ -1599,26 +1645,34 @@ static void windows_dialog_reload(GeanyWindowsDialogData *data)
       WINDOWS_DIALOG_COLUMN_ROW, row,
       -1);
 
-    if (!current_iter_set && !EMPTY(current_path) && utils_filenamecmp(row->full_path, current_path) == 0)
+    if (!select_iter_set && !EMPTY(preferred_path) &&
+      utils_filenamecmp(row->full_path, preferred_path) == 0)
     {
-      current_iter = iter;
-      current_iter_set = TRUE;
+      select_iter = iter;
+      select_iter_set = TRUE;
+    }
+    else if (!select_iter_set && fallback_to_current_doc && !EMPTY(current_path) &&
+      utils_filenamecmp(row->full_path, current_path) == 0)
+    {
+      select_iter = iter;
+      select_iter_set = TRUE;
     }
   }
   g_ptr_array_free(rows, FALSE);
   windows_dialog_update_title(data);
+  gtk_tree_selection_unselect_all(gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree)));
   if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(data->store), NULL) > 0)
   {
     GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree));
     GtkTreePath *path = NULL;
 
-    if (!current_iter_set)
-      current_iter_set = gtk_tree_model_get_iter_first(GTK_TREE_MODEL(data->store), &current_iter);
+    if (!select_iter_set && fallback_to_first)
+      select_iter_set = gtk_tree_model_get_iter_first(GTK_TREE_MODEL(data->store), &select_iter);
 
-    if (current_iter_set)
+    if (select_iter_set)
     {
-      gtk_tree_selection_select_iter(selection, &current_iter);
-      path = gtk_tree_model_get_path(GTK_TREE_MODEL(data->store), &current_iter);
+      gtk_tree_selection_select_iter(selection, &select_iter);
+      path = gtk_tree_model_get_path(GTK_TREE_MODEL(data->store), &select_iter);
       if (path)
       {
         gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(data->tree), path, NULL, TRUE, 0.5f, 0.0f);
@@ -1631,12 +1685,25 @@ static void windows_dialog_reload(GeanyWindowsDialogData *data)
 
 static void windows_dialog_toggle_mode(GeanyWindowsDialogData *data)
 {
-  data->mode = data->mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
+  GeanyWindowsDialogMode old_mode = data->mode;
+  GeanyWindowsDialogMode new_mode;
+  gchar *selected_path = windows_dialog_get_selected_full_path(data);
+  const gchar *preferred_path;
+
+  if (!EMPTY(selected_path))
+    windows_dialog_set_last_selected_path(data, old_mode, selected_path);
+
+  new_mode = old_mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
     GEANY_WINDOWS_DIALOG_MODE_PROJECT_FILES : GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES;
+  preferred_path = !EMPTY(selected_path) ? selected_path :
+    windows_dialog_get_last_selected_path(data, new_mode);
+
+  data->mode = new_mode;
   gtk_combo_box_set_active(GTK_COMBO_BOX(data->mode_combo),
     data->mode == GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES ?
     WINDOWS_DIALOG_MODE_COMBO_OPENED_FILES : WINDOWS_DIALOG_MODE_COMBO_PROJECT_FILES);
-  windows_dialog_reload(data);
+  windows_dialog_reload(data, preferred_path, FALSE, FALSE);
+  g_free(selected_path);
 }
 
 static gboolean windows_dialog_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
@@ -1661,8 +1728,10 @@ static gboolean windows_dialog_key_press(GtkWidget *widget, GdkEventKey *event, 
   }
   if (state == GDK_MOD1_MASK && (event->keyval == GDK_KEY_c || event->keyval == GDK_KEY_C))
   {
+    gchar *selected_path = windows_dialog_get_selected_full_path(data);
     windows_dialog_close_selected_document(data);
-    windows_dialog_reload(data);
+    windows_dialog_reload(data, selected_path, FALSE, TRUE);
+    g_free(selected_path);
     return TRUE;
   }
   return FALSE;
@@ -1681,6 +1750,8 @@ static void windows_dialog_on_destroy(GtkWidget *widget, gpointer user_data)
   GeanyWindowsDialogData *data = user_data;
   windows_dialog_store_free_rows(data->store);
   g_object_unref(data->store);
+  g_free(data->last_opened_selected_path);
+  g_free(data->last_project_selected_path);
   g_free(data);
 }
 
@@ -1693,14 +1764,24 @@ static void windows_dialog_row_activated(GtkTreeView *treeview, GtkTreePath *pat
 static void windows_dialog_mode_combo_changed(GtkComboBox *combo, gpointer user_data)
 {
   GeanyWindowsDialogData *data = user_data;
+  GeanyWindowsDialogMode old_mode = data->mode;
   GeanyWindowsDialogMode mode = gtk_combo_box_get_active(combo) == WINDOWS_DIALOG_MODE_COMBO_PROJECT_FILES ?
     GEANY_WINDOWS_DIALOG_MODE_PROJECT_FILES : GEANY_WINDOWS_DIALOG_MODE_OPENED_FILES;
+  gchar *selected_path;
+  const gchar *preferred_path;
 
   if (mode == data->mode)
     return;
 
+  selected_path = windows_dialog_get_selected_full_path(data);
+  if (!EMPTY(selected_path))
+    windows_dialog_set_last_selected_path(data, old_mode, selected_path);
+  preferred_path = !EMPTY(selected_path) ? selected_path :
+    windows_dialog_get_last_selected_path(data, mode);
+
   data->mode = mode;
-  windows_dialog_reload(data);
+  windows_dialog_reload(data, preferred_path, FALSE, FALSE);
+  g_free(selected_path);
 }
 
 void dialogs_show_windows(GeanyWindowsDialogMode mode)
@@ -1763,7 +1844,7 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
   g_signal_connect(data->tree, "row-activated", G_CALLBACK(windows_dialog_row_activated), data);
   g_signal_connect(data->tree, "key-press-event", G_CALLBACK(windows_dialog_tree_key_press), data);
 
-  windows_dialog_reload(data);
+  windows_dialog_reload(data, NULL, TRUE, TRUE);
   gtk_widget_show_all(data->dialog);
   gtk_widget_grab_focus(data->tree);
 

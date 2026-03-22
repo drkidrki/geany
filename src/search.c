@@ -1742,9 +1742,19 @@ on_find_in_files_dialog_response(GtkDialog *dialog, gint response,
     {
       const gchar *enc = (enc_idx == GEANY_ENCODING_UTF_8) ? NULL :
         encodings_get_charset_from_index(enc_idx);
+      GeanyFindFlags flags = int_search_flags(settings.fif_case_sensitive,
+        settings.fif_match_whole_word, settings.fif_regexp, FALSE, FALSE);
 
       if (search_find_in_files(search_text, utf8_dir, enc))
       {
+        g_free(search_data.text);
+        g_free(search_data.original_text);
+        search_data.text = g_strdup(search_text);
+        search_data.original_text = g_strdup(search_text);
+        search_data.flags = flags;
+        search_data.backwards = FALSE;
+        search_data.search_bar = FALSE;
+
         ui_combo_box_add_to_history(GTK_COMBO_BOX_TEXT(search_combo), search_text, 0);
         ui_combo_box_add_to_history(GTK_COMBO_BOX_TEXT(fif_dlg.files_combo), NULL, 0);
         ui_combo_box_add_to_history(GTK_COMBO_BOX_TEXT(dir_combo), utf8_dir, 0);

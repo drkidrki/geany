@@ -1819,7 +1819,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
   {
     if (settings.fif_match_whole_word)
     {
-      gchar *line_pattern = g_strdup_printf("(^|[^[:alnum:]_])(?:%s)(?=$|[^[:alnum:]_])",
+      gchar *line_pattern = g_strdup_printf("(^|[^[:alnum:]_])(%s)(?=$|[^[:alnum:]_])",
         search_text);
       GError *error = NULL;
 
@@ -1849,7 +1849,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
     GError *error = NULL;
 
     if (settings.fif_match_whole_word)
-      line_pattern = g_strdup_printf("(^|[^[:alnum:]_])(?:%s)(?=$|[^[:alnum:]_])", quoted);
+      line_pattern = g_strdup_printf("(^|[^[:alnum:]_])(%s)(?=$|[^[:alnum:]_])", quoted);
     else
       line_pattern = g_strdup(quoted);
 
@@ -1921,7 +1921,9 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
         gint match_start = -1;
         gint match_end = -1;
 
-        if (g_match_info_fetch_pos(match_info, 0, &match_start, &match_end))
+        gint match_group = settings.fif_match_whole_word ? 2 : 0;
+
+        if (g_match_info_fetch_pos(match_info, match_group, &match_start, &match_end))
         {
           line_offset = match_start;
           selection_length = MAX(match_end - match_start, 0);

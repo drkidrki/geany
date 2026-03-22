@@ -1754,7 +1754,7 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
   scrolled = gtk_scrolled_window_new(NULL, NULL);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
   gtk_container_add(GTK_CONTAINER(scrolled), data->tree);
-  ui_tree_view_disable_smooth_scrolling(GTK_TREE_VIEW(data->tree));
+  ui_tree_view_disable_overlay_scrollbar(GTK_TREE_VIEW(data->tree));
   gtk_box_pack_start(GTK_BOX(content), scrolled, TRUE, TRUE, 6);
 
   g_signal_connect(data->dialog, "destroy", G_CALLBACK(windows_dialog_on_destroy), data);

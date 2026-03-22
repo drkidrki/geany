@@ -668,6 +668,9 @@ static void parse_command_line_options(gint *argc, gchar ***argv)
 		g_printerr("Geany: cannot open display\n");
 		exit(1);
 	}
+  
+  // disable all animations
+  g_object_set(gtk_settings_get_default(), "gtk-enable-animations", FALSE, NULL);
 
 #ifdef MAC_INTEGRATION
 	/* Create GtkosxApplication singleton - should be created shortly after gtk_init() */

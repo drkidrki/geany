@@ -1735,7 +1735,6 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
 
   data->store = gtk_list_store_new(WINDOWS_DIALOG_N_COLUMNS, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_POINTER);
   data->tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(data->store));
-  ui_tree_view_disable_smooth_scrolling(GTK_TREE_VIEW(data->tree));
   gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(data->tree)),
     GTK_SELECTION_MULTIPLE);
   gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(data->tree), TRUE);
@@ -1755,6 +1754,7 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
   scrolled = gtk_scrolled_window_new(NULL, NULL);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
   gtk_container_add(GTK_CONTAINER(scrolled), data->tree);
+  ui_tree_view_disable_smooth_scrolling(GTK_TREE_VIEW(data->tree));
   gtk_box_pack_start(GTK_BOX(content), scrolled, TRUE, TRUE, 6);
 
   g_signal_connect(data->dialog, "destroy", G_CALLBACK(windows_dialog_on_destroy), data);

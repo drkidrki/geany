@@ -2141,6 +2141,31 @@ void ui_tree_view_set_tooltip_text_column(GtkTreeView *tree_view, gint column)
 
 
 /**
+ * Disables smooth scrolling effects for the scrolled window containing a tree view.
+ *
+ * This disables kinetic and overlay scrolling on the ancestor GtkScrolledWindow, if any.
+ *
+ * @param tree_view The tree view whose scrolling behavior should be adjusted.
+ */
+GEANY_API_SYMBOL
+void ui_tree_view_disable_smooth_scrolling(GtkTreeView *tree_view)
+{
+	GtkWidget *scrolled_window;
+
+	g_return_if_fail(GTK_IS_TREE_VIEW(tree_view));
+
+	scrolled_window = gtk_widget_get_ancestor(GTK_WIDGET(tree_view), GTK_TYPE_SCROLLED_WINDOW);
+	if (scrolled_window == NULL)
+		return;
+
+	gtk_scrolled_window_set_kinetic_scrolling(GTK_SCROLLED_WINDOW(scrolled_window), FALSE);
+#if GTK_CHECK_VERSION(3, 16, 0)
+	gtk_scrolled_window_set_overlay_scrolling(GTK_SCROLLED_WINDOW(scrolled_window), FALSE);
+#endif
+}
+
+
+/**
  * Modifies the font of a widget using gtk_widget_modify_font().
  *
  * @param widget The widget.

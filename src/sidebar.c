@@ -435,6 +435,7 @@ static void prepare_openfiles(void)
   GtkTreeModel *filter_model;
 
   tv.tree_openfiles = ui_lookup_widget(main_widgets.window, "treeview6");
+  ui_tree_view_disable_smooth_scrolling(GTK_TREE_VIEW(tv.tree_openfiles));
 
   sidebar_create_store_openfiles();
 
@@ -498,6 +499,7 @@ static void prepare_projectfiles(void)
   // GtkTreeModel *filter_model;
 
   tv.tree_projectfiles = ui_lookup_widget(main_widgets.window, "treeview1");
+  ui_tree_view_disable_smooth_scrolling(GTK_TREE_VIEW(tv.tree_projectfiles));
 
   store_projectfiles = gtk_tree_store_new(DOCUMENTS_COLUMNS_NUM, G_TYPE_ICON, G_TYPE_STRING,
     G_TYPE_POINTER, GDK_TYPE_COLOR, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN);

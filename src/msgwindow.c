@@ -203,6 +203,7 @@ static void prepare_status_tree_view(void)
 	msgwindow.store_status = gtk_list_store_new(1, G_TYPE_STRING);
 	gtk_tree_view_set_model(GTK_TREE_VIEW(msgwindow.tree_status), GTK_TREE_MODEL(msgwindow.store_status));
 	g_object_unref(msgwindow.store_status);
+	ui_tree_view_disable_smooth_scrolling(GTK_TREE_VIEW(msgwindow.tree_status));
 
 	renderer = gtk_cell_renderer_text_new();
 	g_object_set(renderer, "ypad", 0, NULL);
@@ -231,6 +232,7 @@ static void prepare_msg_tree_view(void)
 		GDK_TYPE_COLOR, G_TYPE_STRING);
 	gtk_tree_view_set_model(GTK_TREE_VIEW(msgwindow.tree_msg), GTK_TREE_MODEL(msgwindow.store_msg));
 	g_object_unref(msgwindow.store_msg);
+	ui_tree_view_disable_smooth_scrolling(GTK_TREE_VIEW(msgwindow.tree_msg));
 
 	renderer = gtk_cell_renderer_text_new();
 	g_object_set(renderer, "ypad", 0, NULL);
@@ -264,6 +266,7 @@ static void prepare_compiler_tree_view(void)
 	msgwindow.store_compiler = gtk_list_store_new(COMPILER_COL_COUNT, GDK_TYPE_COLOR, G_TYPE_STRING);
 	gtk_tree_view_set_model(GTK_TREE_VIEW(msgwindow.tree_compiler), GTK_TREE_MODEL(msgwindow.store_compiler));
 	g_object_unref(msgwindow.store_compiler);
+	ui_tree_view_disable_smooth_scrolling(GTK_TREE_VIEW(msgwindow.tree_compiler));
 
 	renderer = gtk_cell_renderer_text_new();
 	g_object_set(renderer, "ypad", 0, NULL);

@@ -313,6 +313,11 @@ static gboolean on_editor_button_press_event(GtkWidget *widget, GdkEventButton *
       gint ss = sci_get_selection_start(editor->sci);
       sci_set_selection_end(editor->sci, ss);
     }
+    if(event->type == GDK_BUTTON_PRESS && state == GDK_CONTROL_MASK)
+    {
+      sci_set_current_position(editor->sci, editor_info.click_pos, FALSE);
+      return TRUE;
+    }
     if (event->type == GDK_BUTTON_PRESS && state == GDK_MOD1_MASK)
     {
       sci_set_current_position(editor->sci, editor_info.click_pos, FALSE);
@@ -345,6 +350,27 @@ static gboolean on_editor_button_press_event(GtkWidget *widget, GdkEventButton *
 
     gtk_menu_popup_at_pointer(GTK_MENU(main_widgets.editor_menu), (GdkEvent *) event);
     return TRUE;
+  }
+  return FALSE;
+}
+
+static gboolean on_editor_button_release_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+  GeanyEditor *editor = data;
+  GeanyDocument *doc = editor->document;
+  
+  if (event->x > 0.0 && event->y > 0.0)
+    editor_info.click_pos = sci_get_position_from_xy(editor->sci, (gint)event->x, (gint)event->y, FALSE);
+  else
+    editor_info.click_pos = sci_get_current_position(editor->sci);
+  
+  if(event->button==1) {
+    const guint state = keybindings_get_modifiers(event->state);
+    if(event->type==GDK_BUTTON_RELEASE && state==GDK_CONTROL_MASK) {
+      sci_set_current_position(editor->sci, editor_info.click_pos, FALSE);
+      editor_select_word(editor);
+      return TRUE;
+    }
   }
   return FALSE;
 }
@@ -4978,6 +5004,7 @@ static ScintillaObject *create_new_sci(GeanyEditor *editor)
 	if (editor->sci == NULL)
 	{
 		g_signal_connect(sci, "button-press-event", G_CALLBACK(on_editor_button_press_event), editor);
+		g_signal_connect(sci, "button-release-event", G_CALLBACK(on_editor_button_release_event), editor);
 		g_signal_connect(sci, "scroll-event", G_CALLBACK(on_editor_scroll_event), editor);
 		g_signal_connect(sci, "motion-notify-event", G_CALLBACK(on_motion_event), NULL);
 		g_signal_connect(sci, "focus-in-event", G_CALLBACK(on_editor_focus_in), editor);

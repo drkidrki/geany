@@ -69,6 +69,8 @@ enum
 {
 	MSG_COL_LINE = 0,
 	MSG_COL_DOC_ID,
+	MSG_COL_LINE_OFFSET,
+	MSG_COL_SELECTION_LENGTH,
 	MSG_COL_COLOR,
 	MSG_COL_STRING,
 	MSG_COL_COUNT
@@ -229,7 +231,7 @@ static void prepare_msg_tree_view(void)
 
 	/* line, doc id, fg, str */
 	msgwindow.store_msg = gtk_list_store_new(MSG_COL_COUNT, G_TYPE_INT, G_TYPE_UINT,
-		GDK_TYPE_COLOR, G_TYPE_STRING);
+		G_TYPE_INT, G_TYPE_INT, GDK_TYPE_COLOR, G_TYPE_STRING);
 	gtk_tree_view_set_model(GTK_TREE_VIEW(msgwindow.tree_msg), GTK_TREE_MODEL(msgwindow.store_msg));
 	g_object_unref(msgwindow.store_msg);
 	ui_tree_view_disable_overlay_scrollbar(GTK_TREE_VIEW(msgwindow.tree_msg));
@@ -434,6 +436,13 @@ void msgwin_msg_add(gint msg_color, gint line, GeanyDocument *doc, const gchar *
 GEANY_API_SYMBOL
 void msgwin_msg_add_string(gint msg_color, gint line, GeanyDocument *doc, const gchar *string)
 {
+	msgwin_msg_add_string_with_pos(msg_color, line, doc, -1, 0, string);
+}
+
+
+void msgwin_msg_add_string_with_pos(gint msg_color, gint line, GeanyDocument *doc,
+	gint line_offset, gint selection_length, const gchar *string)
+{
 	GtkTreeIter iter;
 	const GdkColor *color = get_color(msg_color);
 	gchar *tmp;
@@ -459,8 +468,10 @@ void msgwin_msg_add_string(gint msg_color, gint line, GeanyDocument *doc, const 
 
 	gtk_list_store_append(msgwindow.store_msg, &iter);
 	gtk_list_store_set(msgwindow.store_msg, &iter,
-		MSG_COL_LINE, line, MSG_COL_DOC_ID, doc ? doc->id : 0, MSG_COL_COLOR,
-		color, MSG_COL_STRING, utf8_msg, -1);
+		MSG_COL_LINE, line, MSG_COL_DOC_ID, doc ? doc->id : 0,
+		MSG_COL_LINE_OFFSET, line_offset,
+		MSG_COL_SELECTION_LENGTH, selection_length,
+		MSG_COL_COLOR, color, MSG_COL_STRING, utf8_msg, -1);
 
 	g_free(tmp);
 	if (utf8_msg != tmp)
@@ -1160,13 +1171,17 @@ gboolean msgwin_goto_messages_file_line(gboolean focus_editor)
 	if (gtk_tree_selection_get_selected(selection, &model, &iter))
 	{
 		gint line;
+		gint line_offset;
+		gint selection_length;
 		guint id;
 		gchar *string;
 		GeanyDocument *doc;
 		GeanyDocument *old_doc = document_get_current();
 
 		gtk_tree_model_get(model, &iter,
-			MSG_COL_LINE, &line, MSG_COL_DOC_ID, &id, MSG_COL_STRING, &string, -1);
+			MSG_COL_LINE, &line, MSG_COL_DOC_ID, &id,
+			MSG_COL_LINE_OFFSET, &line_offset, MSG_COL_SELECTION_LENGTH, &selection_length,
+			MSG_COL_STRING, &string, -1);
 		if (line >= 0 && id > 0)
 		{
 			/* check doc is still open */
@@ -1179,6 +1194,16 @@ gboolean msgwin_goto_messages_file_line(gboolean focus_editor)
 			else
 			{
 				ret = navqueue_goto_line(old_doc, doc, line);
+				if (ret && line_offset >= 0)
+				{
+					ScintillaObject *sci = doc->editor->sci;
+					gint line_start = sci_get_position_from_line(sci, line - 1);
+					gint line_end = sci_get_line_end_position(sci, line - 1);
+					gint sel_start = MIN(line_start + line_offset, line_end);
+					gint sel_end = MIN(sel_start + MAX(selection_length, 1), line_end);
+
+					sci_set_selection(sci, sel_start, sel_end);
+				}
 				if (ret && focus_editor)
 					gtk_widget_grab_focus(GTK_WIDGET(doc->editor->sci));
 			}
@@ -1196,6 +1221,16 @@ gboolean msgwin_goto_messages_file_line(gboolean focus_editor)
 				if (doc != NULL)
 				{
 					ret = (line < 0) ? TRUE : navqueue_goto_line(old_doc, doc, line);
+					if (ret && line_offset >= 0 && line > 0)
+					{
+						ScintillaObject *sci = doc->editor->sci;
+						gint line_start = sci_get_position_from_line(sci, line - 1);
+						gint line_end = sci_get_line_end_position(sci, line - 1);
+						gint sel_start = MIN(line_start + line_offset, line_end);
+						gint sel_end = MIN(sel_start + MAX(selection_length, 1), line_end);
+
+						sci_set_selection(sci, sel_start, sel_end);
+					}
 					if (ret && focus_editor)
 						gtk_widget_grab_focus(GTK_WIDGET(doc->editor->sci));
 				}

@@ -1910,21 +1910,47 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
     for (j = 0; lines[j] != NULL; j++)
     {
       gboolean is_match = FALSE;
+      gint line_offset = -1;
+      gint selection_length = 0;
       gchar *line = lines[j];
+      GMatchInfo *match_info = NULL;
 
-      is_match = g_regex_match(line_regex, line, 0, NULL);
+      is_match = g_regex_match(line_regex, line, 0, &match_info);
+      if (is_match && match_info != NULL)
+      {
+        gint match_start = -1;
+        gint match_end = -1;
+
+        if (g_match_info_fetch_pos(match_info, 0, &match_start, &match_end))
+        {
+          line_offset = match_start;
+          selection_length = MAX(match_end - match_start, 0);
+        }
+      }
 
       if (settings.fif_invert_results)
+      {
         is_match = !is_match;
+        line_offset = -1;
+        selection_length = 0;
+      }
 
       if (is_match)
       {
         gchar *line_copy = g_strdup(line);
+        gchar *message;
+
         g_strstrip(line_copy);
-        msgwin_msg_add(COLOR_BLACK, -1, NULL, "%s:%d: %s", argv[i], j + 1, line_copy);
+        message = g_strdup_printf("%s:%d: %s", argv[i], j + 1, line_copy);
+        msgwin_msg_add_string_with_pos(COLOR_BLACK, -1, NULL,
+          line_offset, selection_length, message);
         matches++;
+        g_free(message);
         g_free(line_copy);
       }
+
+      if (match_info != NULL)
+        g_match_info_free(match_info);
     }
 
     g_strfreev(lines);

@@ -107,6 +107,9 @@ void msgwin_parse_compiler_error_line(const gchar *string, const gchar *dir,
 
 gboolean msgwin_goto_messages_file_line(gboolean focus_editor);
 
+void msgwin_msg_add_string_with_pos(gint msg_color, gint line, GeanyDocument *doc,
+	gint line_offset, gint selection_length, const char *msg);
+
 #endif /* GEANY_PRIVATE */
 
 G_END_DECLS

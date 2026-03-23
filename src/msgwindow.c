@@ -450,9 +450,6 @@ void msgwin_msg_add_string_with_pos(gint msg_color, gint line, GeanyDocument *do
 	gsize len;
 	gchar *utf8_msg;
 
-	if (! ui_prefs.msgwindow_visible)
-		msgwin_show_hide(TRUE, FALSE);
-
 	/* work around a strange problem when adding very long lines(greater than 4000 bytes)
 	 * cut the string to a maximum of 1024 bytes and discard the rest */
 	/* TODO: find the real cause for the display problem / if it is GtkTreeView file a bug report */
@@ -477,6 +474,24 @@ void msgwin_msg_add_string_with_pos(gint msg_color, gint line, GeanyDocument *do
 	g_free(tmp);
 	if (utf8_msg != tmp)
 		g_free(utf8_msg);
+
+  // if message window isn't visible
+	if(!ui_prefs.msgwindow_visible) {
+    // show it
+    msgwin_show_hide(TRUE, FALSE);
+  }
+  // if this is a first message
+  int ctChildren = gtk_tree_model_iter_n_children(gtk_tree_view_get_model(GTK_TREE_VIEW(msgwindow.tree_msg)), NULL);
+  if(ctChildren==1) {
+    // select and focus it
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(msgwindow.tree_msg));
+    gtk_tree_selection_select_iter(selection, &iter);
+    GtkTreePath *path = gtk_tree_model_get_path(gtk_tree_view_get_model(GTK_TREE_VIEW(msgwindow.tree_msg)), &iter);
+    gtk_tree_view_set_cursor(GTK_TREE_VIEW(msgwindow.tree_msg), path, NULL, FALSE);
+    gtk_tree_path_free(path);
+    // also focus messages tree view
+    gtk_widget_grab_focus(msgwindow.tree_msg);
+  }
 }
 
 

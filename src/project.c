@@ -1596,7 +1596,7 @@ static gboolean load_config(const gchar *filename)
   /* create a project for us */
   p = create_project();
   p->name = utils_remove_ext_from_filename(project_name);
-  p->base_path = g_strdup(EMPTY(project_root) ? g_strdup(project_dir) : g_strdup(project_root));
+  p->base_path = g_strdup(EMPTY(project_root) ? g_strdup(project_dir) : g_build_filename(project_dir, project_root, NULL));
   p->file_patterns = parse_filter_patterns(project_filter);
   p->file_name = utils_get_utf8_from_locale(filename);
 

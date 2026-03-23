@@ -693,7 +693,8 @@ static void on_update_ui(GeanyEditor *editor, SCNotification *nt)
 
 	ui_update_statusbar(editor->document);
 
-	if (nt->updated & SC_UPDATE_SELECTION)
+	if (nt->updated & SC_UPDATE_SELECTION ||
+		((nt->updated & SC_UPDATE_CONTENT) && editor->auto_mark_all_last_text != NULL))
 		auto_mark_all_selection_schedule(editor);
 
 #if 0

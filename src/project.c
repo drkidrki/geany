@@ -40,7 +40,6 @@
 #include "projectprivate.h"
 #include "sidebar.h"
 #include "stash.h"
-#include "simple_xml.h"
 #include "support.h"
 #include "ui_utils.h"
 #include "utils.h"

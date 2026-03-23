@@ -1512,6 +1512,7 @@ static void _collectProjectFiles(GeanyProject *project, const gchar *collect_bas
       g_free(spec);
       continue;
     }
+    g_strdelimit(spec, "/", G_DIR_SEPARATOR);
 
     abs_path = g_build_filename(collect_base_path, spec, NULL);
 

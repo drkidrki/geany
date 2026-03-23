@@ -1803,7 +1803,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
 
   dir = utils_get_locale_from_utf8(utf8_dir);
   // replace base path macro directory
-  if(app->project && (g_strcmp0(dir, PROJECT_ROOT_TARGET_DIRECTORY)==0 || g_strcmp0(dir, PROJECT_FILES_TARGET_DIRECTORY)==0)) {
+  if(app->project && g_strcmp0(dir, PROJECT_ROOT_TARGET_DIRECTORY)==0) {
     g_free(dir);
     dir = g_strdup(app->project->base_path);
   }
@@ -1815,6 +1815,12 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
     g_free(dir);
     return FALSE;
   }
+  // replace project files macro directory
+  if(app->project && g_strcmp0(dir, PROJECT_FILES_TARGET_DIRECTORY)==0) {
+    g_free(dir);
+    dir = g_strdup(app->project->base_path);
+  }
+  
   reset_msgwin();
   msgwin_set_messages_dir(dir);
   ui_progress_bar_start(_("Searching..."));

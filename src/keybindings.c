@@ -1678,6 +1678,8 @@ static gboolean cb_func_search_action(guint key_id)
     {
       gchar *text = NULL;
       gint pos = sci_get_current_position(sci);
+      gint sel_start = -1;
+      gint sel_end = -1;
 
       /* clear existing search indicators instead if next to cursor */
       if (SSM(sci, SCI_INDICATORVALUEAT,
@@ -1693,7 +1695,11 @@ static gboolean cb_func_search_action(guint key_id)
       }
 
       if (sci_has_selection(sci))
-        search_mark_all(doc, text, GEANY_FIND_MATCHCASE);
+      {
+        sel_start = sci_get_selection_start(sci);
+        sel_end = sci_get_selection_end(sci);
+        search_mark_all_ex(doc, text, GEANY_FIND_MATCHCASE, sel_start, sel_end, 0);
+      }
       else
         search_mark_all(doc, text, GEANY_FIND_MATCHCASE | GEANY_FIND_WHOLEWORD);
 

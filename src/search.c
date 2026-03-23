@@ -1298,10 +1298,12 @@ void geany_match_info_free(GeanyMatchInfo *info)
  *  foreach_slist(node, matches)
  *    geany_match_info_free(node->data);
  *  g_slist_free(matches); */
-static GSList *find_range(ScintillaObject *sci, GeanyFindFlags flags, struct Sci_TextToFind *ttf)
+static GSList *find_range(ScintillaObject *sci, GeanyFindFlags flags, struct Sci_TextToFind *ttf,
+	gint max_matches)
 {
   GSList *matches = NULL;
   GeanyMatchInfo *info;
+  gint count = 0;
 
   g_return_val_if_fail(sci != NULL && ttf->lpstrText != NULL, NULL);
   if (! *ttf->lpstrText)
@@ -1317,6 +1319,9 @@ static GSList *find_range(ScintillaObject *sci, GeanyFindFlags flags, struct Sci
     }
 
     matches = g_slist_prepend(matches, info);
+    count++;
+    if (max_matches > 0 && count >= max_matches)
+      break;
     ttf->chrg.cpMin = ttf->chrgText.cpMax;
 
     /* avoid rematching with empty matches like "(?=[a-z])" or "^$".
@@ -1334,6 +1339,15 @@ static GSList *find_range(ScintillaObject *sci, GeanyFindFlags flags, struct Sci
  * @return Number of matches marked. */
 gint search_mark_all(GeanyDocument *doc, const gchar *search_text, GeanyFindFlags flags)
 {
+  return search_mark_all_ex(doc, search_text, flags, -1, -1, 0);
+}
+
+
+/* Clears markers if text is null/empty.
+ * @return Number of matches marked. */
+gint search_mark_all_ex(GeanyDocument *doc, const gchar *search_text, GeanyFindFlags flags,
+  gint excluded_start, gint excluded_end, gint max_matches)
+{
   gint count = 0;
   struct Sci_TextToFind ttf;
   GSList *match, *matches;
@@ -1350,14 +1364,17 @@ gint search_mark_all(GeanyDocument *doc, const gchar *search_text, GeanyFindFlag
   ttf.chrg.cpMax = sci_get_length(doc->editor->sci);
   ttf.lpstrText = (gchar *)search_text;
 
-  matches = find_range(doc->editor->sci, flags, &ttf);
+  matches = find_range(doc->editor->sci, flags, &ttf, max_matches);
   foreach_slist (match, matches)
   {
     GeanyMatchInfo *info = match->data;
+    gboolean excluded = (excluded_start >= 0 && excluded_end >= 0 &&
+      info->start == excluded_start && info->end == excluded_end);
 
-    if (info->end != info->start)
+    if (!excluded && info->end != info->start)
       editor_indicator_set_on_range(doc->editor, GEANY_INDICATOR_SEARCH, info->start, info->end);
-    count++;
+    if (!excluded)
+      count++;
 
     geany_match_info_free(info);
   }

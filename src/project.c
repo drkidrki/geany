@@ -95,8 +95,17 @@ static void destroy_project(gboolean open_default);
 static GeanyProjectItem *project_item_new(GeanyProjectItemType type,
   const gchar *name, const gchar *rel_path, const gchar *abs_path);
 static void project_item_free(gpointer data);
-static void _collectProjectFiles(GeanyProject *project, XMLNode *xmlNode);
-static void _collectProjectFilesRecursive(const gchar *base_path, XMLNode *xmlNode, GeanyProjectItem *parent);
+static void _collectProjectFiles(GeanyProject *project, const gchar *collect_base_path,
+  GStrv file_specs, GStrv filter_extensions);
+static void _collectProjectFilesRecursive(const gchar *abs_path, const gchar *rel_path,
+  GeanyProjectItem *parent, GStrv filter_extensions);
+static gboolean json_extract_string_member(const gchar *json_data, const gchar *member,
+  gchar **value);
+static GStrv json_extract_string_array_member(const gchar *json_data, const gchar *member);
+static gchar *json_unescape_string(const gchar *escaped);
+static GStrv parse_filter_extensions(const gchar *filter_value);
+static GStrv parse_filter_patterns(const gchar *filter_value);
+static gboolean project_file_matches_filter(const gchar *filename, GStrv filter_extensions);
 
 
 #define SHOW_ERR(args) dialogs_show_msgbox(GTK_MESSAGE_ERROR, args)
@@ -1120,47 +1129,261 @@ static void project_item_free(gpointer data)
 }
 
 
-static void _collectProjectFilesRecursive(const gchar *base_path, XMLNode *xmlNode, GeanyProjectItem *parent)
+static gboolean json_extract_string_member(const gchar *json_data, const gchar *member,
+  gchar **value)
 {
-  gint i;
-  gint count;
+  GRegex *regex;
+  GMatchInfo *match_info = NULL;
+  gchar *pattern;
+  gchar *escaped = NULL;
 
-  g_return_if_fail(xmlNode != NULL);
-  g_return_if_fail(parent != NULL && parent->children != NULL);
+  g_return_val_if_fail(json_data != NULL && member != NULL && value != NULL, FALSE);
 
-  count = xmlCountChildren(xmlNode);
-  for (i = 0; i < count; i++)
+  pattern = g_strdup_printf("\"%s\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"", member);
+  regex = g_regex_new(pattern, G_REGEX_DOTALL, 0, NULL);
+  g_free(pattern);
+
+  if (!g_regex_match(regex, json_data, 0, &match_info))
   {
-    XMLNode *child = xmlGetChild(xmlNode, i);
-    const gchar *type = xmlGetName(child);
-
-    if (utils_str_equal(type, "Folder"))
-    {
-      const gchar *name = xmlReadAttribute(child, "name");
-      GeanyProjectItem *folder;
-
-      folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, EMPTY(name) ? "" : name, "", "");
-      g_ptr_array_add(parent->children, folder);
-      _collectProjectFilesRecursive(base_path, child, folder);
-    }
-    else if (utils_str_equal(type, "File"))
-    {
-      const gchar *path = xmlReadAttribute(child, "path");
-      const gchar *name = xmlReadAttribute(child, "name");
-      if(!EMPTY(path)) {
-        char *pathAbs = g_strconcat(base_path, G_DIR_SEPARATOR_S, path, NULL);
-        GeanyProjectItem *file = project_item_new(GEANY_PROJECT_ITEM_FILE, name, path, pathAbs);
-        g_ptr_array_add(parent->children, file);
-      }
-    }
+    g_match_info_free(match_info);
+    g_regex_unref(regex);
+    return FALSE;
   }
+
+  escaped = g_match_info_fetch(match_info, 1);
+  *value = json_unescape_string(escaped);
+
+  g_free(escaped);
+  g_match_info_free(match_info);
+  g_regex_unref(regex);
+  return TRUE;
 }
 
 
-static void _collectProjectFiles(GeanyProject *project, XMLNode *xmlNode)
+static GStrv json_extract_string_array_member(const gchar *json_data, const gchar *member)
 {
+  GRegex *array_regex;
+  GRegex *item_regex;
+  GMatchInfo *array_match = NULL;
+  GMatchInfo *item_match = NULL;
+  gchar *array_pattern;
+  gchar *array_content = NULL;
+  GPtrArray *items;
+  GStrv result;
+
+  g_return_val_if_fail(json_data != NULL && member != NULL, NULL);
+
+  array_pattern = g_strdup_printf("\"%s\"\\s*:\\s*\\[(.*?)\\]", member);
+  array_regex = g_regex_new(array_pattern, G_REGEX_DOTALL, 0, NULL);
+  g_free(array_pattern);
+
+  if (!g_regex_match(array_regex, json_data, 0, &array_match))
+  {
+    g_match_info_free(array_match);
+    g_regex_unref(array_regex);
+    return NULL;
+  }
+
+  array_content = g_match_info_fetch(array_match, 1);
+  g_match_info_free(array_match);
+  g_regex_unref(array_regex);
+
+  item_regex = g_regex_new("\"((?:\\\\.|[^\"\\\\])*)\"", G_REGEX_DOTALL, 0, NULL);
+  items = g_ptr_array_new_with_free_func(g_free);
+
+  g_regex_match(item_regex, array_content, 0, &item_match);
+  while (g_match_info_matches(item_match))
+  {
+    gchar *escaped = g_match_info_fetch(item_match, 1);
+    g_ptr_array_add(items, json_unescape_string(escaped));
+    g_free(escaped);
+    g_match_info_next(item_match, NULL);
+  }
+
+  g_match_info_free(item_match);
+  g_regex_unref(item_regex);
+  g_free(array_content);
+
+  g_ptr_array_add(items, NULL);
+  result = (GStrv) g_ptr_array_free(items, FALSE);
+  return result;
+}
+
+
+static gchar *json_unescape_string(const gchar *escaped)
+{
+  GString *result;
+  const gchar *p;
+
+  g_return_val_if_fail(escaped != NULL, NULL);
+
+  result = g_string_new(NULL);
+  for (p = escaped; *p != '\0'; p++)
+  {
+    if (*p == '\\' && *(p + 1) != '\0')
+    {
+      p++;
+      switch (*p)
+      {
+        case '"':
+        case '\\':
+        case '/':
+          g_string_append_c(result, *p);
+          break;
+        case 'b':
+          g_string_append_c(result, '\b');
+          break;
+        case 'f':
+          g_string_append_c(result, '\f');
+          break;
+        case 'n':
+          g_string_append_c(result, '\n');
+          break;
+        case 'r':
+          g_string_append_c(result, '\r');
+          break;
+        case 't':
+          g_string_append_c(result, '\t');
+          break;
+        default:
+          g_string_append_c(result, *p);
+          break;
+      }
+    }
+    else
+      g_string_append_c(result, *p);
+  }
+
+  return g_string_free(result, FALSE);
+}
+
+
+static GStrv parse_filter_extensions(const gchar *filter_value)
+{
+  gchar **values;
+  GPtrArray *extensions;
+  gint i;
+
+  if (EMPTY(filter_value))
+    return NULL;
+
+  values = g_strsplit(filter_value, ";", -1);
+  extensions = g_ptr_array_new_with_free_func(g_free);
+
+  for (i = 0; values[i] != NULL; i++)
+  {
+    gchar *trimmed = g_strstrip(values[i]);
+    if (EMPTY(trimmed))
+      continue;
+
+    if (trimmed[0] != '.')
+      g_ptr_array_add(extensions, g_strconcat(".", trimmed, NULL));
+    else
+      g_ptr_array_add(extensions, g_strdup(trimmed));
+  }
+
+  g_strfreev(values);
+  g_ptr_array_add(extensions, NULL);
+  return (GStrv) g_ptr_array_free(extensions, FALSE);
+}
+
+
+static GStrv parse_filter_patterns(const gchar *filter_value)
+{
+  GStrv extensions;
+  GPtrArray *patterns;
+  gint i;
+
+  extensions = parse_filter_extensions(filter_value);
+  if (extensions == NULL)
+    return NULL;
+
+  patterns = g_ptr_array_new_with_free_func(g_free);
+  for (i = 0; extensions[i] != NULL; i++)
+    g_ptr_array_add(patterns, g_strconcat("*", extensions[i], NULL));
+
+  g_strfreev(extensions);
+  g_ptr_array_add(patterns, NULL);
+  return (GStrv) g_ptr_array_free(patterns, FALSE);
+}
+
+
+static gboolean project_file_matches_filter(const gchar *filename, GStrv filter_extensions)
+{
+  const gchar *ext;
+  gint i;
+
+  if (filter_extensions == NULL || filter_extensions[0] == NULL)
+    return TRUE;
+
+  ext = strrchr(filename, '.');
+  if (EMPTY(ext))
+    return FALSE;
+
+  for (i = 0; filter_extensions[i] != NULL; i++)
+  {
+    if (g_strcmp0(ext, filter_extensions[i]) == 0)
+      return TRUE;
+  }
+
+  return FALSE;
+}
+
+
+static void _collectProjectFilesRecursive(const gchar *abs_path, const gchar *rel_path,
+  GeanyProjectItem *parent, GStrv filter_extensions)
+{
+  GDir *dir;
+  const gchar *entry;
+
+  g_return_if_fail(abs_path != NULL);
+  g_return_if_fail(parent != NULL && parent->children != NULL);
+
+  dir = g_dir_open(abs_path, 0, NULL);
+  if (dir == NULL)
+    return;
+
+  while ((entry = g_dir_read_name(dir)) != NULL)
+  {
+    gchar *entry_abs;
+    gchar *entry_rel;
+
+    if (utils_str_equal(entry, ".") || utils_str_equal(entry, ".."))
+      continue;
+
+    entry_abs = g_build_filename(abs_path, entry, NULL);
+    entry_rel = EMPTY(rel_path) ? g_strdup(entry) : g_build_filename(rel_path, entry, NULL);
+
+    if (g_file_test(entry_abs, G_FILE_TEST_IS_DIR))
+    {
+      GeanyProjectItem *folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, entry,
+        entry_rel, entry_abs);
+      g_ptr_array_add(parent->children, folder);
+      _collectProjectFilesRecursive(entry_abs, entry_rel, folder, filter_extensions);
+    }
+    else if (g_file_test(entry_abs, G_FILE_TEST_IS_REGULAR) &&
+      project_file_matches_filter(entry, filter_extensions))
+    {
+      GeanyProjectItem *file = project_item_new(GEANY_PROJECT_ITEM_FILE, entry,
+        entry_rel, entry_abs);
+      g_ptr_array_add(parent->children, file);
+    }
+
+    g_free(entry_rel);
+    g_free(entry_abs);
+  }
+
+  g_dir_close(dir);
+}
+
+
+static void _collectProjectFiles(GeanyProject *project, const gchar *collect_base_path,
+  GStrv file_specs, GStrv filter_extensions)
+{
+  gint i;
+
   g_return_if_fail(project != NULL && project->priv != NULL);
-  g_return_if_fail(xmlNode != NULL);
+  g_return_if_fail(collect_base_path != NULL);
 
   if (project->priv->project_root != NULL)
     project_item_free(project->priv->project_root);
@@ -1168,7 +1391,43 @@ static void _collectProjectFiles(GeanyProject *project, XMLNode *xmlNode)
   project->priv->project_root = project_item_new(GEANY_PROJECT_ITEM_FOLDER,
     FALLBACK(project->name, ""), project->base_path, project->base_path);
 
-  _collectProjectFilesRecursive(project->base_path, xmlNode, project->priv->project_root);
+  if (file_specs == NULL)
+    return;
+
+  for (i = 0; file_specs[i] != NULL; i++)
+  {
+    gchar *spec;
+    gchar *abs_path;
+
+    spec = g_strdup(g_strstrip(file_specs[i]));
+    if (EMPTY(spec))
+    {
+      g_free(spec);
+      continue;
+    }
+
+    abs_path = g_build_filename(collect_base_path, spec, NULL);
+
+    if (g_file_test(abs_path, G_FILE_TEST_IS_DIR))
+    {
+      gchar *name = g_path_get_basename(spec);
+      GeanyProjectItem *folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, name, spec, abs_path);
+      g_ptr_array_add(project->priv->project_root->children, folder);
+      _collectProjectFilesRecursive(abs_path, spec, folder, filter_extensions);
+      g_free(name);
+    }
+    else if (g_file_test(abs_path, G_FILE_TEST_IS_REGULAR) &&
+      project_file_matches_filter(spec, filter_extensions))
+    {
+      gchar *name = g_path_get_basename(spec);
+      GeanyProjectItem *file = project_item_new(GEANY_PROJECT_ITEM_FILE, name, spec, abs_path);
+      g_ptr_array_add(project->priv->project_root->children, file);
+      g_free(name);
+    }
+
+    g_free(abs_path);
+    g_free(spec);
+  }
 }
 
 
@@ -1181,41 +1440,51 @@ static gboolean load_config(const gchar *filename)
   GKeyFile *config;
   GeanyProject *p;
   GSList *node;
+  gchar *project_data = NULL;
+  gchar *project_dir = NULL;
+  gchar *project_root = NULL;
+  gchar *project_filter = NULL;
+  gchar *project_name = NULL;
+  gchar *collect_base_path = NULL;
+  GStrv project_files = NULL;
+  GStrv filter_extensions = NULL;
+  gboolean loaded = FALSE;
 
   /* there should not be an open project */
   g_return_val_if_fail(app->project == NULL && filename != NULL, FALSE);
 
-  // bail if project file doesn't exists
+  /* bail if project file doesn't exist */
   if (! g_file_test(filename, G_FILE_TEST_EXISTS))
     return FALSE;
 
-  // parse gproject file
-  XMLNode *xmlProject = xmlParseFile(filename);
-  // fail if failed
-  if(xmlProject==NULL) {
-    return false;
-  }
-  // fail if failed
-  if(strcmp(xmlGetName(xmlProject), "Project")!=0) {
-    xmlFreeTree(xmlProject);
-    return false;
-  }
-  // create a project for us
+  if (!g_file_get_contents(filename, &project_data, NULL, NULL))
+    return FALSE;
+
+  if (!json_extract_string_member(project_data, "root", &project_root))
+    goto cleanup;
+
+  if (!json_extract_string_member(project_data, "filter", &project_filter))
+    project_filter = g_strdup("");
+
+  project_files = json_extract_string_array_member(project_data, "files");
+  project_dir = g_path_get_dirname(filename);
+  project_name = g_path_get_basename(filename);
+
+  /* create a project for us */
   p = create_project();
-  // extract project name
-  p->name = g_strdup(xmlReadAttribute(xmlProject, "name"));
-  // extract root
-  p->base_path = g_strdup(xmlReadAttribute(xmlProject, "base_path"));
-  // extract file patterns
-  p->file_patterns = g_strsplit(xmlReadAttribute(xmlProject, "file_patterns"), ";", -1);
-  // store filename
+  p->name = utils_remove_ext_from_filename(project_name);
+  p->base_path = g_strdup(EMPTY(project_root) ? "./" : project_root);
+  p->file_patterns = parse_filter_patterns(project_filter);
   p->file_name = utils_get_utf8_from_locale(filename);
 
-  // collect files
-  _collectProjectFiles(p, xmlProject);
-  xmlFreeTree(xmlProject);
+  filter_extensions = parse_filter_extensions(project_filter);
+  collect_base_path = EMPTY(project_root)
+    ? g_strdup(project_dir)
+    : g_build_filename(project_dir, project_root, NULL);
+  _collectProjectFiles(p, collect_base_path, project_files, filter_extensions);
+  loaded = TRUE;
 
-  // prepare session filename
+  /* prepare session filename */
   gchar *filenameBase = g_path_get_basename(p->file_name);
   gchar *filenameNoExt = utils_remove_ext_from_filename(filenameBase);
   gchar *dirSession = g_build_path(G_DIR_SEPARATOR_S, app->configdir, "sessions", NULL);
@@ -1263,7 +1532,18 @@ static gboolean load_config(const gchar *filename)
   g_free(filenameSession);
 
   update_ui();
-  return TRUE;
+
+cleanup:
+  g_free(collect_base_path);
+  g_strfreev(filter_extensions);
+  g_strfreev(project_files);
+  g_free(project_name);
+  g_free(project_filter);
+  g_free(project_root);
+  g_free(project_dir);
+  g_free(project_data);
+
+  return loaded;
 }
 
 

@@ -943,8 +943,8 @@ static void load_dialog_prefs(GKeyFile *config)
 	editor_prefs.comment_toggle_mark = utils_get_setting_string(config, PACKAGE, "comment_toggle_mark", GEANY_TOGGLE_MARK);
 	editor_prefs.autoclose_chars = utils_get_setting_integer(config, PACKAGE, "autoclose_chars", 0);
 	editor_prefs.auto_mark_all_on_selection = utils_get_setting_boolean(config, PACKAGE, "auto_mark_all_on_selection", TRUE);
-	editor_prefs.auto_mark_all_delay_ms = utils_get_setting_integer(config, PACKAGE, "auto_mark_all_delay_ms", 150);
-	editor_prefs.auto_mark_all_min_chars = utils_get_setting_integer(config, PACKAGE, "auto_mark_all_min_chars", 2);
+	editor_prefs.auto_mark_all_delay_ms = utils_get_setting_integer(config, PACKAGE, "auto_mark_all_delay_ms", 10);
+	editor_prefs.auto_mark_all_min_chars = utils_get_setting_integer(config, PACKAGE, "auto_mark_all_min_chars", 1);
 	editor_prefs.auto_mark_all_max_doc_chars = utils_get_setting_integer(config, PACKAGE, "auto_mark_all_max_doc_chars", 2000000);
 	editor_prefs.auto_mark_all_max_matches = utils_get_setting_integer(config, PACKAGE, "auto_mark_all_max_matches", 2000);
 

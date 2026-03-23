@@ -1330,11 +1330,94 @@ static gboolean project_file_matches_filter(const gchar *filename, GStrv filter_
 }
 
 
+static gint sort_strings(gconstpointer a, gconstpointer b)
+{
+  return g_strcmp0(*(const gchar * const *) a, *(const gchar * const *) b);
+}
+
+
+static GeanyProjectItem *project_item_find_child_folder(GeanyProjectItem *parent, const gchar *name)
+{
+  guint i;
+
+  g_return_val_if_fail(parent != NULL && parent->children != NULL, NULL);
+  g_return_val_if_fail(name != NULL, NULL);
+
+  for (i = 0; i < parent->children->len; i++)
+  {
+    GeanyProjectItem *item = g_ptr_array_index(parent->children, i);
+    if (item->type == GEANY_PROJECT_ITEM_FOLDER && utils_str_equal(item->name, name))
+      return item;
+  }
+
+  return NULL;
+}
+
+
+static GeanyProjectItem *project_item_ensure_folder_path(GeanyProjectItem *root, const gchar *rel_path,
+  const gchar *abs_base_path)
+{
+  GeanyProjectItem *current;
+  gchar **parts;
+  gchar *built_rel = NULL;
+  gchar *built_abs = NULL;
+  gint i;
+
+  g_return_val_if_fail(root != NULL && root->children != NULL, NULL);
+  g_return_val_if_fail(rel_path != NULL, NULL);
+  g_return_val_if_fail(abs_base_path != NULL, NULL);
+
+  current = root;
+  parts = g_strsplit(rel_path, G_DIR_SEPARATOR_S, -1);
+  for (i = 0; parts[i] != NULL; i++)
+  {
+    GeanyProjectItem *folder;
+
+    if (EMPTY(parts[i]))
+      continue;
+
+    if (built_rel == NULL)
+      built_rel = g_strdup(parts[i]);
+    else
+    {
+      gchar *tmp = g_build_filename(built_rel, parts[i], NULL);
+      g_free(built_rel);
+      built_rel = tmp;
+    }
+
+    if (built_abs == NULL)
+      built_abs = g_build_filename(abs_base_path, parts[i], NULL);
+    else
+    {
+      gchar *tmp = g_build_filename(built_abs, parts[i], NULL);
+      g_free(built_abs);
+      built_abs = tmp;
+    }
+
+    folder = project_item_find_child_folder(current, parts[i]);
+    if (folder == NULL)
+    {
+      folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, parts[i], built_rel, built_abs);
+      g_ptr_array_add(current->children, folder);
+    }
+    current = folder;
+  }
+
+  g_strfreev(parts);
+  g_free(built_rel);
+  g_free(built_abs);
+  return current;
+}
+
+
 static void _collectProjectFilesRecursive(const gchar *abs_path, const gchar *rel_path,
   GeanyProjectItem *parent, GStrv filter_extensions)
 {
   GDir *dir;
+  GPtrArray *directories;
+  GPtrArray *files;
   const gchar *entry;
+  guint i;
 
   g_return_if_fail(abs_path != NULL);
   g_return_if_fail(parent != NULL && parent->children != NULL);
@@ -1343,36 +1426,60 @@ static void _collectProjectFilesRecursive(const gchar *abs_path, const gchar *re
   if (dir == NULL)
     return;
 
+  directories = g_ptr_array_new_with_free_func(g_free);
+  files = g_ptr_array_new_with_free_func(g_free);
+
   while ((entry = g_dir_read_name(dir)) != NULL)
   {
     gchar *entry_abs;
-    gchar *entry_rel;
 
     if (utils_str_equal(entry, ".") || utils_str_equal(entry, ".."))
       continue;
 
     entry_abs = g_build_filename(abs_path, entry, NULL);
-    entry_rel = EMPTY(rel_path) ? g_strdup(entry) : g_build_filename(rel_path, entry, NULL);
 
     if (g_file_test(entry_abs, G_FILE_TEST_IS_DIR))
-    {
-      GeanyProjectItem *folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, entry,
-        entry_rel, entry_abs);
-      g_ptr_array_add(parent->children, folder);
-      _collectProjectFilesRecursive(entry_abs, entry_rel, folder, filter_extensions);
-    }
+      g_ptr_array_add(directories, g_strdup(entry));
     else if (g_file_test(entry_abs, G_FILE_TEST_IS_REGULAR) &&
       project_file_matches_filter(entry, filter_extensions))
-    {
-      GeanyProjectItem *file = project_item_new(GEANY_PROJECT_ITEM_FILE, entry,
-        entry_rel, entry_abs);
-      g_ptr_array_add(parent->children, file);
-    }
+      g_ptr_array_add(files, g_strdup(entry));
+
+    g_free(entry_abs);
+  }
+
+  g_ptr_array_sort(directories, sort_strings);
+  g_ptr_array_sort(files, sort_strings);
+
+  for (i = 0; i < directories->len; i++)
+  {
+    const gchar *dirname = g_ptr_array_index(directories, i);
+    gchar *entry_abs = g_build_filename(abs_path, dirname, NULL);
+    gchar *entry_rel = EMPTY(rel_path) ? g_strdup(dirname) : g_build_filename(rel_path, dirname, NULL);
+    GeanyProjectItem *folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, dirname, entry_rel, entry_abs);
+
+    _collectProjectFilesRecursive(entry_abs, entry_rel, folder, filter_extensions);
+    if (folder->children->len > 0)
+      g_ptr_array_add(parent->children, folder);
+    else
+      project_item_free(folder);
 
     g_free(entry_rel);
     g_free(entry_abs);
   }
 
+  for (i = 0; i < files->len; i++)
+  {
+    const gchar *filename = g_ptr_array_index(files, i);
+    gchar *entry_abs = g_build_filename(abs_path, filename, NULL);
+    gchar *entry_rel = EMPTY(rel_path) ? g_strdup(filename) : g_build_filename(rel_path, filename, NULL);
+    GeanyProjectItem *file = project_item_new(GEANY_PROJECT_ITEM_FILE, filename, entry_rel, entry_abs);
+    g_ptr_array_add(parent->children, file);
+    g_free(entry_rel);
+    g_free(entry_abs);
+  }
+
+  g_ptr_array_free(directories, TRUE);
+  g_ptr_array_free(files, TRUE);
   g_dir_close(dir);
 }
 
@@ -1412,16 +1519,31 @@ static void _collectProjectFiles(GeanyProject *project, const gchar *collect_bas
     {
       gchar *name = g_path_get_basename(spec);
       GeanyProjectItem *folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, name, spec, abs_path);
-      g_ptr_array_add(project->priv->project_root->children, folder);
       _collectProjectFilesRecursive(abs_path, spec, folder, filter_extensions);
+      if (folder->children->len > 0)
+        g_ptr_array_add(project->priv->project_root->children, folder);
+      else
+        project_item_free(folder);
       g_free(name);
     }
-    else if (g_file_test(abs_path, G_FILE_TEST_IS_REGULAR) &&
-      project_file_matches_filter(spec, filter_extensions))
+    else if (g_file_test(abs_path, G_FILE_TEST_IS_REGULAR))
     {
+      GeanyProjectItem *parent;
+      gchar *dirname = g_path_get_dirname(spec);
       gchar *name = g_path_get_basename(spec);
-      GeanyProjectItem *file = project_item_new(GEANY_PROJECT_ITEM_FILE, name, spec, abs_path);
-      g_ptr_array_add(project->priv->project_root->children, file);
+      GeanyProjectItem *file;
+
+      if (!utils_str_equal(dirname, "."))
+      {
+        parent = project_item_ensure_folder_path(project->priv->project_root, dirname,
+          collect_base_path);
+      }
+      else
+        parent = project->priv->project_root;
+
+      file = project_item_new(GEANY_PROJECT_ITEM_FILE, name, spec, abs_path);
+      g_ptr_array_add(parent->children, file);
+      g_free(dirname);
       g_free(name);
     }
 

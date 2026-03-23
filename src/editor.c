@@ -49,6 +49,7 @@
 #include "pluginextension.h"
 #include "prefs.h"
 #include "projectprivate.h"
+#include "search.h"
 #include "sciwrappers.h"
 #include "support.h"
 #include "symbols.h"
@@ -106,6 +107,8 @@ static const gchar *snippets_find_completion_by_name(const gchar *type, const gc
 static void snippets_make_replacements(GeanyEditor *editor, GString *pattern);
 static GeanyFiletype *editor_get_filetype_at_line(GeanyEditor *editor, gint line);
 static gboolean sci_is_blank_line(ScintillaObject *sci, gint line);
+static void auto_mark_all_selection_schedule(GeanyEditor *editor);
+static void auto_mark_all_selection_clear(GeanyEditor *editor);
 
 
 void editor_snippets_free(void)
@@ -521,7 +524,138 @@ static void on_margin_click(GeanyEditor *editor, SCNotification *nt)
 }
 
 
-static void on_update_ui(GeanyEditor *editor, G_GNUC_UNUSED SCNotification *nt)
+static gboolean auto_mark_all_text_is_word_like(const gchar *text)
+{
+	const guchar *p;
+
+	if (EMPTY(text))
+		return FALSE;
+
+	for (p = (const guchar *) text; *p != '\0'; p++)
+	{
+		if (! (g_ascii_isalnum(*p) || *p == '_'))
+			return FALSE;
+	}
+
+	return TRUE;
+}
+
+
+static void auto_mark_all_selection_clear(GeanyEditor *editor)
+{
+	g_return_if_fail(editor != NULL);
+
+	if (editor->auto_mark_all_timeout_id != 0)
+	{
+		g_source_remove(editor->auto_mark_all_timeout_id);
+		editor->auto_mark_all_timeout_id = 0;
+	}
+
+	editor_indicator_clear(editor, GEANY_INDICATOR_SEARCH);
+	g_clear_pointer(&editor->auto_mark_all_last_text, g_free);
+	editor->auto_mark_all_last_start = -1;
+	editor->auto_mark_all_last_end = -1;
+}
+
+
+static gboolean auto_mark_all_selection_timeout_cb(gpointer user_data)
+{
+	GeanyEditor *editor = user_data;
+	GeanyDocument *doc;
+	ScintillaObject *sci;
+	gint sel_start, sel_end, max_doc_chars, min_chars, max_matches;
+	gchar *text = NULL;
+
+	g_return_val_if_fail(editor != NULL, G_SOURCE_REMOVE);
+	editor->auto_mark_all_timeout_id = 0;
+
+	doc = editor->document;
+	if (!DOC_VALID(doc))
+		return G_SOURCE_REMOVE;
+
+	if (!editor_prefs.auto_mark_all_on_selection)
+	{
+		auto_mark_all_selection_clear(editor);
+		return G_SOURCE_REMOVE;
+	}
+
+	sci = editor->sci;
+	if (!sci_has_selection(sci) || sci_get_selection_mode(sci) != SC_SEL_STREAM)
+	{
+		auto_mark_all_selection_clear(editor);
+		return G_SOURCE_REMOVE;
+	}
+
+	sel_start = sci_get_selection_start(sci);
+	sel_end = sci_get_selection_end(sci);
+	if (sel_end <= sel_start ||
+		sci_get_line_from_position(sci, sel_start) != sci_get_line_from_position(sci, sel_end - 1))
+	{
+		auto_mark_all_selection_clear(editor);
+		return G_SOURCE_REMOVE;
+	}
+
+	max_doc_chars = editor_prefs.auto_mark_all_max_doc_chars;
+	if (max_doc_chars > 0 && sci_get_length(sci) > max_doc_chars)
+	{
+		auto_mark_all_selection_clear(editor);
+		return G_SOURCE_REMOVE;
+	}
+
+	min_chars = editor_prefs.auto_mark_all_min_chars;
+	if (sel_end - sel_start < MAX(1, min_chars))
+	{
+		auto_mark_all_selection_clear(editor);
+		return G_SOURCE_REMOVE;
+	}
+
+	text = sci_get_selection_contents(sci);
+	if (!auto_mark_all_text_is_word_like(text))
+	{
+		g_free(text);
+		auto_mark_all_selection_clear(editor);
+		return G_SOURCE_REMOVE;
+	}
+
+	if (utils_str_equal(editor->auto_mark_all_last_text, text) &&
+		editor->auto_mark_all_last_start == sel_start &&
+		editor->auto_mark_all_last_end == sel_end)
+	{
+		g_free(text);
+		return G_SOURCE_REMOVE;
+	}
+
+	max_matches = editor_prefs.auto_mark_all_max_matches;
+	search_mark_all_ex(doc, text, GEANY_FIND_MATCHCASE, sel_start, sel_end, max_matches);
+
+	g_free(editor->auto_mark_all_last_text);
+	editor->auto_mark_all_last_text = text;
+	editor->auto_mark_all_last_start = sel_start;
+	editor->auto_mark_all_last_end = sel_end;
+
+	return G_SOURCE_REMOVE;
+}
+
+
+static void auto_mark_all_selection_schedule(GeanyEditor *editor)
+{
+	gint delay_ms;
+
+	g_return_if_fail(editor != NULL);
+
+	if (!editor_prefs.auto_mark_all_on_selection)
+		return;
+
+	if (editor->auto_mark_all_timeout_id != 0)
+		g_source_remove(editor->auto_mark_all_timeout_id);
+
+	delay_ms = MAX(10, editor_prefs.auto_mark_all_delay_ms);
+	editor->auto_mark_all_timeout_id = g_timeout_add((guint) delay_ms,
+		auto_mark_all_selection_timeout_cb, editor);
+}
+
+
+static void on_update_ui(GeanyEditor *editor, SCNotification *nt)
 {
 	ScintillaObject *sci = editor->sci;
 	gint pos = sci_get_current_position(sci);
@@ -544,6 +678,9 @@ static void on_update_ui(GeanyEditor *editor, G_GNUC_UNUSED SCNotification *nt)
 	editor_highlight_braces(editor, pos);
 
 	ui_update_statusbar(editor->document);
+
+	if (nt->updated & SC_UPDATE_SELECTION)
+		auto_mark_all_selection_schedule(editor);
 
 #if 0
 	/** experimental code for inverting selections */
@@ -5060,6 +5197,8 @@ GeanyEditor *editor_create(GeanyDocument *doc)
 	editor->line_wrapping = get_project_pref(line_wrapping);
 	editor->scroll_percent = -1.0F;
 	editor->line_breaking = FALSE;
+	editor->auto_mark_all_last_start = -1;
+	editor->auto_mark_all_last_end = -1;
 
 	editor->sci = editor_create_widget(editor);
 	return editor;
@@ -5069,6 +5208,9 @@ GeanyEditor *editor_create(GeanyDocument *doc)
 /* in case we need to free some fields in future */
 void editor_destroy(GeanyEditor *editor)
 {
+	if (editor->auto_mark_all_timeout_id != 0)
+		g_source_remove(editor->auto_mark_all_timeout_id);
+	g_free(editor->auto_mark_all_last_text);
 	g_free(editor);
 }
 

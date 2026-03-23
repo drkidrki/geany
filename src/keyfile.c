@@ -582,6 +582,11 @@ static void save_dialog_prefs(GKeyFile *config)
 	g_key_file_set_string(config, PACKAGE, "comment_toggle_mark", editor_prefs.comment_toggle_mark);
 	g_key_file_set_boolean(config, PACKAGE, "scroll_stop_at_last_line", editor_prefs.scroll_stop_at_last_line);
 	g_key_file_set_integer(config, PACKAGE, "autoclose_chars", editor_prefs.autoclose_chars);
+	g_key_file_set_boolean(config, PACKAGE, "auto_mark_all_on_selection", editor_prefs.auto_mark_all_on_selection);
+	g_key_file_set_integer(config, PACKAGE, "auto_mark_all_delay_ms", editor_prefs.auto_mark_all_delay_ms);
+	g_key_file_set_integer(config, PACKAGE, "auto_mark_all_min_chars", editor_prefs.auto_mark_all_min_chars);
+	g_key_file_set_integer(config, PACKAGE, "auto_mark_all_max_doc_chars", editor_prefs.auto_mark_all_max_doc_chars);
+	g_key_file_set_integer(config, PACKAGE, "auto_mark_all_max_matches", editor_prefs.auto_mark_all_max_matches);
 
 	/* files */
 	g_key_file_set_string(config, PACKAGE, "pref_editor_default_new_encoding", encodings[file_prefs.default_new_encoding].charset);
@@ -937,6 +942,11 @@ static void load_dialog_prefs(GKeyFile *config)
 	editor_prefs.auto_continue_multiline = utils_get_setting_boolean(config, PACKAGE, "auto_continue_multiline", TRUE);
 	editor_prefs.comment_toggle_mark = utils_get_setting_string(config, PACKAGE, "comment_toggle_mark", GEANY_TOGGLE_MARK);
 	editor_prefs.autoclose_chars = utils_get_setting_integer(config, PACKAGE, "autoclose_chars", 0);
+	editor_prefs.auto_mark_all_on_selection = utils_get_setting_boolean(config, PACKAGE, "auto_mark_all_on_selection", TRUE);
+	editor_prefs.auto_mark_all_delay_ms = utils_get_setting_integer(config, PACKAGE, "auto_mark_all_delay_ms", 150);
+	editor_prefs.auto_mark_all_min_chars = utils_get_setting_integer(config, PACKAGE, "auto_mark_all_min_chars", 2);
+	editor_prefs.auto_mark_all_max_doc_chars = utils_get_setting_integer(config, PACKAGE, "auto_mark_all_max_doc_chars", 2000000);
+	editor_prefs.auto_mark_all_max_matches = utils_get_setting_integer(config, PACKAGE, "auto_mark_all_max_matches", 2000);
 
 	/* Files
 	 * use current locale encoding as default for new files (should be UTF-8 in most cases) */

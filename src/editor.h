@@ -142,6 +142,11 @@ typedef struct GeanyEditorPrefs
 	gboolean	show_line_endings_only_when_differ;
 	gboolean	change_history_markers;
 	gboolean	change_history_indicators;
+	gboolean	auto_mark_all_on_selection;
+	gint		auto_mark_all_delay_ms;
+	gint		auto_mark_all_min_chars;
+	gint		auto_mark_all_max_doc_chars;
+	gint		auto_mark_all_max_matches;
 }
 GeanyEditorPrefs;
 
@@ -161,6 +166,10 @@ typedef struct GeanyEditor
 	GeanyIndentType	 indent_type;	/* Use editor_get_indent_prefs() instead. */
 	gboolean		 line_breaking;	/**< Whether to split long lines as you type. */
 	gint			 indent_width;
+	guint			 auto_mark_all_timeout_id;
+	gchar			*auto_mark_all_last_text;
+	gint			 auto_mark_all_last_start;
+	gint			 auto_mark_all_last_end;
 }
 GeanyEditor;
 

@@ -2410,7 +2410,7 @@ static gint find_document_usage(GeanyDocument *doc, const gchar *search_text, Ge
   ttf.chrg.cpMax = sci_get_length(doc->editor->sci);
   ttf.lpstrText = (gchar *)search_text;
 
-  matches = find_range(doc->editor->sci, flags, &ttf);
+  matches = find_range(doc->editor->sci, flags, &ttf, -1);
   foreach_slist (match, matches)
   {
     GeanyMatchInfo *info = match->data;
@@ -2497,7 +2497,7 @@ guint search_replace_range(ScintillaObject *sci, struct Sci_TextToFind *ttf,
   if (! *ttf->lpstrText)
     return 0;
 
-  matches = find_range(sci, flags, ttf);
+  matches = find_range(sci, flags, ttf, -1);
   foreach_slist (match, matches)
   {
     GeanyMatchInfo *info = match->data;

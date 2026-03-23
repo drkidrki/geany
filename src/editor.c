@@ -640,7 +640,7 @@ static gboolean auto_mark_all_selection_timeout_cb(gpointer user_data)
 	}
 
 	max_matches = editor_prefs.auto_mark_all_max_matches;
-	search_mark_all_ex(doc, text, GEANY_FIND_MATCHCASE, sel_start, sel_end, max_matches);
+	search_mark_all_ex(doc, text, GEANY_FIND_MATCHCASE|GEANY_FIND_WHOLEWORD, sel_start, sel_end, max_matches);
 
 	g_free(editor->auto_mark_all_last_text);
 	editor->auto_mark_all_last_text = text;

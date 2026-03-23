@@ -1337,6 +1337,7 @@ typedef struct GeanyWindowsDialogData
   GeanyWindowsDialogMode mode;
   gchar *last_opened_selected_path;
   gchar *last_project_selected_path;
+  gboolean cleanup_done;
 }
 GeanyWindowsDialogData;
 
@@ -1749,14 +1750,24 @@ static gboolean windows_dialog_tree_key_press(GtkWidget *widget, GdkEventKey *ev
 	return windows_dialog_key_press(widget, event, user_data);
 }
 
-static void windows_dialog_on_destroy(GtkWidget *widget, gpointer user_data)
+static void windows_dialog_data_cleanup(GeanyWindowsDialogData *data)
 {
-  GeanyWindowsDialogData *data = user_data;
+  if (data == NULL || data->cleanup_done)
+    return;
+
+  data->cleanup_done = TRUE;
   windows_dialog_store_free_rows(data->store);
   g_object_unref(data->store);
   g_free(data->last_opened_selected_path);
   g_free(data->last_project_selected_path);
   g_free(data);
+}
+
+static void windows_dialog_on_destroy(GtkWidget *widget, gpointer user_data)
+{
+  GeanyWindowsDialogData *data = user_data;
+  (void) widget;
+  data->dialog = NULL;
 }
 
 static void windows_dialog_row_activated(GtkTreeView *treeview, GtkTreePath *path,
@@ -1852,14 +1863,17 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
   gtk_widget_show_all(data->dialog);
   gtk_widget_grab_focus(data->tree);
 
-  if (gtk_dialog_run(GTK_DIALOG(data->dialog)) == GTK_RESPONSE_ACCEPT) {
-    windows_dialog_open_selected(data);
-  } else {
-    if(data->dialog!=NULL) {
+  {
+    gint response = gtk_dialog_run(GTK_DIALOG(data->dialog));
+
+    if (response == GTK_RESPONSE_ACCEPT)
+      windows_dialog_open_selected(data);
+
+    if (data->dialog != NULL)
       gtk_widget_destroy(data->dialog);
-      data->dialog = NULL;
-    }
   }
+
+  windows_dialog_data_cleanup(data);
 }
 
 /* extra_text can be NULL; otherwise it is displayed below main_text.

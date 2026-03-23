@@ -192,6 +192,10 @@ static gboolean on_msgwin_key_press_event(GtkWidget *widget, GdkEventKey *event,
 				break;
 			}
 		}
+	// on escape
+	} else if(event->keyval==GDK_KEY_Escape) {
+		// focus text editor
+		keybindings_send_command(GEANY_KEY_GROUP_FOCUS, GEANY_KEYS_FOCUS_EDITOR);
 	}
 	return FALSE;
 }

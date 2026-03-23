@@ -250,6 +250,9 @@ static void prepare_msg_tree_view(void)
 	gtk_tree_view_set_search_column(GTK_TREE_VIEW(msgwindow.tree_msg), MSG_COL_STRING);
 
 	ui_widget_modify_font_from_string(msgwindow.tree_msg, interface_prefs.msgwin_font);
+	gtk_style_context_add_class(gtk_widget_get_style_context(msgwindow.tree_msg),
+		"geany-inactive-selection");
+
 
 	g_signal_connect(msgwindow.tree_msg, "button-press-event",
 					G_CALLBACK(on_msgwin_button_press_event), GINT_TO_POINTER(MSG_MESSAGE));

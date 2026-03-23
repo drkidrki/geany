@@ -1469,7 +1469,16 @@ static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *ev, gpointer 
   {
     foreach_ptr_array(kb, i, group->key_items)
     {
-      if (keyval == kb->key && state == kb->mods)
+      gboolean switch_tablastused_key = FALSE;
+
+      if (kb->id == GEANY_KEYS_NOTEBOOK_SWITCHTABLASTUSED && kb->key == GDK_KEY_Tab)
+      {
+        switch_tablastused_key =
+          ((keyval == GDK_KEY_Tab || keyval == GDK_KEY_ISO_Left_Tab) &&
+           (state == kb->mods || state == (kb->mods | GDK_SHIFT_MASK)));
+      }
+
+      if (switch_tablastused_key || (keyval == kb->key && state == kb->mods))
       {
         if (run_kb(kb, group))
           return TRUE;
@@ -1982,7 +1991,10 @@ static void cb_func_switch_tabright(G_GNUC_UNUSED guint key_id)
 
 static void cb_func_switch_tablastused(G_GNUC_UNUSED guint key_id)
 {
-  notebook_switch_tablastused();
+  GdkModifierType mods = 0;
+
+  gtk_get_current_event_state(&mods);
+  notebook_switch_tablastused((mods & GDK_SHIFT_MASK) != 0);
 }
 
 

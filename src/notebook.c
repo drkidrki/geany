@@ -61,7 +61,15 @@ static guint mru_pos = 0;
 
 static gboolean switch_in_progress = FALSE;
 static GtkWidget *switch_dialog = NULL;
-static GtkWidget *switch_dialog_label = NULL;
+static GtkWidget *switch_treeview = NULL;
+static GtkListStore *switch_store = NULL;
+
+enum
+{
+	SWITCH_COL_PATH,
+	SWITCH_COL_DOC,
+	SWITCH_COL_COUNT
+};
 
 
 static void
@@ -143,35 +151,18 @@ static GtkWidget *ui_minimal_dialog_new(GtkWindow *parent, const gchar *title)
 }
 
 
-static gboolean is_modifier_key(guint keyval)
+static gboolean is_control_key(guint keyval)
 {
-	switch (keyval)
-	{
-		case GDK_KEY_Shift_L:
-		case GDK_KEY_Shift_R:
-		case GDK_KEY_Control_L:
-		case GDK_KEY_Control_R:
-		case GDK_KEY_Meta_L:
-		case GDK_KEY_Meta_R:
-		case GDK_KEY_Alt_L:
-		case GDK_KEY_Alt_R:
-		case GDK_KEY_Super_L:
-		case GDK_KEY_Super_R:
-		case GDK_KEY_Hyper_L:
-		case GDK_KEY_Hyper_R:
-			return TRUE;
-		default:
-			return FALSE;
-	}
+	return keyval == GDK_KEY_Control_L || keyval == GDK_KEY_Control_R;
 }
 
 
-static gboolean on_key_release_event(GtkWidget *widget, GdkEventKey *ev, gpointer user_data)
+static gboolean on_key_release_event(G_GNUC_UNUSED GtkWidget *widget, GdkEventKey *ev,
+	G_GNUC_UNUSED gpointer user_data)
 {
-	/* user may have rebound keybinding to a different modifier than Ctrl, so check all */
-	if (switch_in_progress && is_modifier_key(ev->keyval))
+	if (switch_in_progress && is_control_key(ev->keyval))
 	{
-		GeanyDocument *doc;
+		GeanyDocument *doc = g_queue_peek_nth(mru_docs, mru_pos);
 
 		switch_in_progress = FALSE;
 
@@ -179,9 +170,14 @@ static gboolean on_key_release_event(GtkWidget *widget, GdkEventKey *ev, gpointe
 		{
 			gtk_widget_destroy(switch_dialog);
 			switch_dialog = NULL;
+			switch_treeview = NULL;
+			switch_store = NULL;
 		}
 
-		doc = document_get_current();
+		if (!DOC_VALID(doc))
+			doc = document_get_current();
+		else
+			document_show_tab(doc);
 		update_mru_docs_head(doc);
 		mru_pos = 0;
 		document_check_disk_status(doc, TRUE);
@@ -192,35 +188,62 @@ static gboolean on_key_release_event(GtkWidget *widget, GdkEventKey *ev, gpointe
 
 static GtkWidget *create_switch_dialog(void)
 {
-	GtkWidget *dialog, *widget, *vbox;
+	GtkWidget *dialog, *scrolled;
+	GtkTreeViewColumn *column;
+	GtkCellRenderer *renderer;
 
 	dialog = ui_minimal_dialog_new(GTK_WINDOW(main_widgets.window), _("Switch to Document"));
 	gtk_window_set_decorated(GTK_WINDOW(dialog), FALSE);
-	gtk_window_set_default_size(GTK_WINDOW(dialog), 200, -1);
+	gtk_window_set_default_size(GTK_WINDOW(dialog), 640, 360);
 
-	vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-	gtk_container_set_border_width(GTK_CONTAINER(vbox), 12);
-	gtk_container_add(GTK_CONTAINER(dialog), vbox);
+	switch_store = gtk_list_store_new(SWITCH_COL_COUNT, G_TYPE_STRING, G_TYPE_POINTER);
+	switch_treeview = gtk_tree_view_new_with_model(GTK_TREE_MODEL(switch_store));
+	gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(switch_treeview), FALSE);
+	gtk_tree_view_set_enable_search(GTK_TREE_VIEW(switch_treeview), FALSE);
 
-	widget = gtk_image_new_from_stock(GTK_STOCK_JUMP_TO, GTK_ICON_SIZE_BUTTON);
-	gtk_container_add(GTK_CONTAINER(vbox), widget);
+	renderer = gtk_cell_renderer_text_new();
+	column = gtk_tree_view_column_new_with_attributes(NULL, renderer, "text", SWITCH_COL_PATH, NULL);
+	gtk_tree_view_append_column(GTK_TREE_VIEW(switch_treeview), column);
 
-	widget = gtk_label_new(NULL);
-	gtk_label_set_justify(GTK_LABEL(widget), GTK_JUSTIFY_CENTER);
-	gtk_container_add(GTK_CONTAINER(vbox), widget);
-	switch_dialog_label = widget;
+	scrolled = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
+		GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+	gtk_container_set_border_width(GTK_CONTAINER(scrolled), 8);
+	gtk_widget_set_size_request(scrolled, 480, 320);
+	gtk_container_add(GTK_CONTAINER(scrolled), switch_treeview);
+	gtk_container_add(GTK_CONTAINER(dialog), scrolled);
 
 	g_signal_connect(dialog, "key-release-event", G_CALLBACK(on_key_release_event), NULL);
+
 	return dialog;
 }
 
 
-static void update_filename_label(void)
+static void switch_dialog_select_row(guint index)
 {
+	GtkTreeIter iter;
+	GtkTreePath *path;
+	GtkTreeSelection *selection;
+
+	if (!switch_treeview || !gtk_tree_model_iter_nth_child(GTK_TREE_MODEL(switch_store), &iter, NULL, index))
+		return;
+
+	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(switch_treeview));
+	path = gtk_tree_model_get_path(GTK_TREE_MODEL(switch_store), &iter);
+	gtk_tree_selection_select_iter(selection, &iter);
+	gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(switch_treeview), path, NULL, TRUE, 0.5, 0.0);
+	gtk_tree_path_free(path);
+}
+
+
+static void update_switch_dialog(gboolean first_show)
+{
+	GtkTreeIter iter;
 	guint i;
-	guint queue_length;
-	GeanyDocument *doc;
-	GString *markup = g_string_new(NULL);
+	guint queue_length = g_queue_get_length(mru_docs);
+
+	if (queue_length == 0)
+		return;
 
 	if (!switch_dialog)
 	{
@@ -228,74 +251,146 @@ static void update_filename_label(void)
 		gtk_widget_show_all(switch_dialog);
 	}
 
-	queue_length = g_queue_get_length(mru_docs);
-	for (i = mru_pos; (i <= mru_pos + 3) && (doc = g_queue_peek_nth(mru_docs, i % queue_length)); i++)
+	gtk_list_store_clear(switch_store);
+	for (i = 0; i < queue_length; i++)
 	{
-		gchar *basename;
+		GeanyDocument *doc = g_queue_peek_nth(mru_docs, i);
+		gchar *text;
 
-		basename = g_path_get_basename(DOC_FILENAME(doc));
-		SETPTR(basename, g_markup_escape_text(basename, -1));
+		if (!DOC_VALID(doc))
+			continue;
 
-		if (i == mru_pos)
-			g_string_printf(markup, "<b>%s</b>", basename);
-		else if (i % queue_length == mru_pos)    /* && i != mru_pos */
-		{
-			/* We have wrapped around and got to the starting document again */
-			g_free(basename);
-			break;
-		}
-		else
-		{
-			g_string_append(markup, "\n");
-			if (doc->changed)
-				SETPTR(basename, g_strconcat("<span color='red'>", basename, "</span>", NULL));
-			g_string_append(markup, basename);
-		}
-		g_free(basename);
+		text = g_strdup(DOC_FILENAME(doc));
+		gtk_list_store_append(switch_store, &iter);
+		gtk_list_store_set(switch_store, &iter,
+			SWITCH_COL_PATH, text,
+			SWITCH_COL_DOC, doc,
+			-1);
+		g_free(text);
 	}
-	gtk_label_set_markup(GTK_LABEL(switch_dialog_label), markup->str);
-	g_string_free(markup, TRUE);
+
+	switch_dialog_select_row(mru_pos);
+	if (first_show)
+		gtk_widget_grab_focus(switch_treeview);
 }
 
 
-static gboolean on_switch_timeout(G_GNUC_UNUSED gpointer data)
+static void switch_mru_selection(gboolean backwards)
 {
-	if (!switch_in_progress || switch_dialog)
-	{
-		return FALSE;
-	}
+	guint queue_length = g_queue_get_length(mru_docs);
 
-	update_filename_label();
+	if (queue_length == 0)
+		return;
+
+	if (backwards)
+		mru_pos = (mru_pos + queue_length - 1) % queue_length;
+	else
+		mru_pos = (mru_pos + 1) % queue_length;
+
+	update_switch_dialog(FALSE);
+}
+
+
+static gboolean on_switch_dialog_key_press(G_GNUC_UNUSED GtkWidget *widget, GdkEventKey *ev,
+	G_GNUC_UNUSED gpointer user_data)
+{
+	if (!switch_in_progress)
+		return FALSE;
+
+	if ((ev->state & GDK_CONTROL_MASK) && (ev->keyval == GDK_KEY_Tab || ev->keyval == GDK_KEY_ISO_Left_Tab))
+	{
+		switch_mru_selection((ev->state & GDK_SHIFT_MASK) != 0 || ev->keyval == GDK_KEY_ISO_Left_Tab);
+		return TRUE;
+	}
 	return FALSE;
 }
 
 
-void notebook_switch_tablastused(void)
+static void activate_switch_iter(GtkTreeModel *model, GtkTreeIter *iter)
 {
-	GeanyDocument *last_doc;
+	GeanyDocument *doc = NULL;
+
+	gtk_tree_model_get(model, iter, SWITCH_COL_DOC, &doc, -1);
+	if (!DOC_VALID(doc))
+		return;
+
+	switch_in_progress = FALSE;
+	document_show_tab(doc);
+	update_mru_docs_head(doc);
+	mru_pos = 0;
+	document_check_disk_status(doc, TRUE);
+
+	if (switch_dialog)
+	{
+		gtk_widget_destroy(switch_dialog);
+		switch_dialog = NULL;
+		switch_treeview = NULL;
+		switch_store = NULL;
+	}
+}
+
+
+static void on_switch_dialog_row_activated(GtkTreeView *tree_view, GtkTreePath *path,
+	G_GNUC_UNUSED GtkTreeViewColumn *column, G_GNUC_UNUSED gpointer user_data)
+{
+	GtkTreeIter iter;
+	GtkTreeModel *model = gtk_tree_view_get_model(tree_view);
+
+	if (gtk_tree_model_get_iter(model, &iter, path))
+		activate_switch_iter(model, &iter);
+}
+
+
+static gboolean on_switch_dialog_button_release(G_GNUC_UNUSED GtkWidget *widget, GdkEventButton *event,
+	G_GNUC_UNUSED gpointer user_data)
+{
+	GtkTreePath *path = NULL;
+
+	if (event->button != 1 || !switch_treeview)
+		return FALSE;
+
+	if (gtk_tree_view_get_path_at_pos(GTK_TREE_VIEW(switch_treeview),
+		(gint) event->x, (gint) event->y, &path, NULL, NULL, NULL))
+	{
+		GtkTreeIter iter;
+		GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(switch_treeview));
+
+		if (gtk_tree_model_get_iter(model, &iter, path))
+			activate_switch_iter(model, &iter);
+		gtk_tree_path_free(path);
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+void notebook_switch_tablastused(gboolean backwards)
+{
 	gboolean switch_start = !switch_in_progress;
+	guint queue_length = g_queue_get_length(mru_docs);
 
-	mru_pos += 1;
-	last_doc = g_queue_peek_nth(mru_docs, mru_pos);
-
-	if (! DOC_VALID(last_doc))
+	if (queue_length == 0)
 	{
 		utils_beep();
 		mru_pos = 0;
-		last_doc = g_queue_peek_nth(mru_docs, mru_pos);
-	}
-	if (! DOC_VALID(last_doc))
 		return;
+	}
 
-	switch_in_progress = TRUE;
-	document_show_tab(last_doc);
-
-	/* if there's a modifier key, we can switch back in MRU order each time unless
-	 * the key is released */
 	if (switch_start)
-		g_timeout_add(600, on_switch_timeout, NULL);
+	{
+		mru_pos = backwards ? queue_length - 1 : 1 % queue_length;
+		switch_in_progress = TRUE;
+		update_switch_dialog(TRUE);
+		g_signal_connect(switch_dialog, "key-press-event",
+			G_CALLBACK(on_switch_dialog_key_press), NULL);
+		g_signal_connect(switch_treeview, "row-activated",
+			G_CALLBACK(on_switch_dialog_row_activated), NULL);
+		g_signal_connect(switch_treeview, "button-release-event",
+			G_CALLBACK(on_switch_dialog_button_release), NULL);
+	}
 	else
-		update_filename_label();
+		switch_mru_selection(backwards);
+
 }
 
 

@@ -37,9 +37,9 @@ gint notebook_new_tab(GeanyDocument *doc);
 /* Always use this instead of gtk_notebook_remove_page(). */
 void notebook_remove_page(gint page_num);
 
-/* Switch notebook to the last used tab. Can be called repeatedly to get to the
- * previous tabs. */
-void notebook_switch_tablastused(void);
+/* Switch notebook using MRU order. Can be called repeatedly to cycle through
+ * recent tabs. */
+void notebook_switch_tablastused(gboolean backwards);
 
 /* Returns TRUE when MRU tab switch is in progress (i.e. not at the final
  * document yet). */

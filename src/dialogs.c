@@ -1493,6 +1493,7 @@ static void windows_dialog_open_selected(GeanyWindowsDialogData *data)
   if (selected_paths == NULL)
   {
     gtk_widget_destroy(data->dialog);
+    data->dialog = NULL;
     return;
   }
 
@@ -1528,6 +1529,7 @@ static void windows_dialog_open_selected(GeanyWindowsDialogData *data)
   g_list_free_full(selected_paths, (GDestroyNotify) gtk_tree_path_free);
 
   gtk_widget_destroy(data->dialog);
+  data->dialog = NULL;
 }
 
 static void windows_dialog_close_selected_document(GeanyWindowsDialogData *data)
@@ -1545,6 +1547,7 @@ static void windows_dialog_close_selected_document(GeanyWindowsDialogData *data)
   if (selected_paths == NULL)
   {
     gtk_widget_destroy(data->dialog);
+    data->dialog = NULL;
     return;
   }
 
@@ -1719,6 +1722,7 @@ static gboolean windows_dialog_key_press(GtkWidget *widget, GdkEventKey *event, 
   if (event->keyval == GDK_KEY_Escape)
   {
     gtk_widget_destroy(data->dialog);
+    data->dialog = NULL;
     return TRUE;
   }
   if (state == GDK_MOD1_MASK && event->keyval == GDK_KEY_e)
@@ -1848,10 +1852,14 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
   gtk_widget_show_all(data->dialog);
   gtk_widget_grab_focus(data->tree);
 
-  if (gtk_dialog_run(GTK_DIALOG(data->dialog)) == GTK_RESPONSE_ACCEPT)
+  if (gtk_dialog_run(GTK_DIALOG(data->dialog)) == GTK_RESPONSE_ACCEPT) {
     windows_dialog_open_selected(data);
-  else
-    gtk_widget_destroy(data->dialog);
+  } else {
+    if(data->dialog!=NULL) {
+      gtk_widget_destroy(data->dialog);
+      data->dialog = NULL;
+    }
+  }
 }
 
 /* extra_text can be NULL; otherwise it is displayed below main_text.

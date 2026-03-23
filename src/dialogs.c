@@ -1337,7 +1337,6 @@ typedef struct GeanyWindowsDialogData
   GeanyWindowsDialogMode mode;
   gchar *last_opened_selected_path;
   gchar *last_project_selected_path;
-  gboolean cleanup_done;
 }
 GeanyWindowsDialogData;
 
@@ -1750,19 +1749,6 @@ static gboolean windows_dialog_tree_key_press(GtkWidget *widget, GdkEventKey *ev
 	return windows_dialog_key_press(widget, event, user_data);
 }
 
-static void windows_dialog_data_cleanup(GeanyWindowsDialogData *data)
-{
-  if (data == NULL || data->cleanup_done)
-    return;
-
-  data->cleanup_done = TRUE;
-  windows_dialog_store_free_rows(data->store);
-  g_object_unref(data->store);
-  g_free(data->last_opened_selected_path);
-  g_free(data->last_project_selected_path);
-  g_free(data);
-}
-
 static void windows_dialog_on_destroy(GtkWidget *widget, gpointer user_data)
 {
   GeanyWindowsDialogData *data = user_data;
@@ -1872,8 +1858,13 @@ void dialogs_show_windows(GeanyWindowsDialogMode mode)
     if (data->dialog != NULL)
       gtk_widget_destroy(data->dialog);
   }
-
-  windows_dialog_data_cleanup(data);
+  
+  // free memory
+  windows_dialog_store_free_rows(data->store);
+  g_object_unref(data->store);
+  g_free(data->last_opened_selected_path);
+  g_free(data->last_project_selected_path);
+  g_free(data);
 }
 
 /* extra_text can be NULL; otherwise it is displayed below main_text.

@@ -499,6 +499,9 @@ static void prepare_projectfiles(void)
   // GtkTreeModel *filter_model;
 
   tv.tree_projectfiles = ui_lookup_widget(main_widgets.window, "treeview1");
+  gtk_style_context_add_class(gtk_widget_get_style_context(tv.tree_projectfiles),
+    "geany-inactive-selection");
+
   ui_tree_view_disable_overlay_scrollbar(GTK_TREE_VIEW(tv.tree_projectfiles));
 
   store_projectfiles = gtk_tree_store_new(DOCUMENTS_COLUMNS_NUM, G_TYPE_ICON, G_TYPE_STRING,

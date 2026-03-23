@@ -52,6 +52,17 @@
     color: #006eff;
 }
 
+
+
+/* make selected items less prominent when a tree view does not have focus */
+treeview.view.geany-inactive-selection:selected:not(:focus),
+treeview.view.geany-inactive-selection row:selected:not(:focus),
+treeview.view.geany-inactive-selection:selected:backdrop,
+treeview.view.geany-inactive-selection row:selected:backdrop {
+	background-color: #c0c0c0;
+	color: inherit;
+}
+
 /* red "Terminal" label when terminal dirty */
 #geany-terminal-dirty {
 	color: #ff3030;

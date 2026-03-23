@@ -541,6 +541,14 @@ static gboolean auto_mark_all_text_is_word_like(const gchar *text)
 }
 
 
+static gboolean auto_mark_all_selection_is_complete_word(ScintillaObject *sci,
+	gint sel_start, gint sel_end)
+{
+	return sci_word_start_position(sci, sel_start, TRUE) == sel_start &&
+		sci_word_end_position(sci, sel_start, TRUE) == sel_end;
+}
+
+
 static void auto_mark_all_selection_clear(GeanyEditor *editor)
 {
 	g_return_if_fail(editor != NULL);
@@ -611,6 +619,12 @@ static gboolean auto_mark_all_selection_timeout_cb(gpointer user_data)
 
 	text = sci_get_selection_contents(sci);
 	if (!auto_mark_all_text_is_word_like(text))
+	{
+		g_free(text);
+		auto_mark_all_selection_clear(editor);
+		return G_SOURCE_REMOVE;
+	}
+	if (!auto_mark_all_selection_is_complete_word(sci, sel_start, sel_end))
 	{
 		g_free(text);
 		auto_mark_all_selection_clear(editor);

@@ -184,6 +184,11 @@ on_find_in_files_dialog_response(GtkDialog *dialog, gint response, gpointer user
 static gboolean
 search_find_in_files(const gchar *utf8_search_text, const gchar *dir, const gchar *enc);
 
+static gboolean
+plain_text_match_in_line(const gchar *line, const gchar *search_text,
+  const gchar *search_text_folded, gboolean case_sensitive, gboolean whole_word,
+  gint *line_offset, gint *selection_length);
+
 
 static void init_prefs(void)
 {
@@ -1794,6 +1799,8 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
   gboolean ret = FALSE;
   GRegex *regex = NULL;
   GRegex *line_regex = NULL;
+  gboolean use_plain_line_match = FALSE;
+  gchar *search_text_folded = NULL;
   GSList *patterns;
   guint i;
   guint matches = 0;
@@ -1871,31 +1878,18 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
   }
   else
   {
-    gchar *quoted = g_regex_escape_string(search_text, -1);
-    gchar *line_pattern;
-    GError *error = NULL;
-
-    if (settings.fif_match_whole_word)
-      line_pattern = g_strdup_printf("(^|[^[:alnum:]_])(%s)(?=$|[^[:alnum:]_])", quoted);
-    else
-      line_pattern = g_strdup(quoted);
-
-    line_regex = g_regex_new(line_pattern,
-      settings.fif_case_sensitive ? 0 : G_REGEX_CASELESS, 0, &error);
-    if (!line_regex)
+    use_plain_line_match = TRUE;
+    if (!settings.fif_case_sensitive)
     {
-      ui_set_statusbar(FALSE, _("Bad regex: %s"), error->message);
-      g_error_free(error);
-      ui_progress_bar_stop();
-      g_free(line_pattern);
-      g_free(quoted);
-      g_strfreev(argv);
-      g_free(dir);
-      return FALSE;
+      search_text_folded = g_utf8_strdown(search_text, -1);
+      if (search_text_folded == NULL)
+      {
+        ui_progress_bar_stop();
+        g_strfreev(argv);
+        g_free(dir);
+        return FALSE;
+      }
     }
-
-    g_free(line_pattern);
-    g_free(quoted);
   }
 
   utf8_str = g_strdup_printf(_("Search \"%s\" in \"%s\""), utf8_search_text, utf8_dir);
@@ -1941,18 +1935,27 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
       gchar *line = lines[j];
       GMatchInfo *match_info = NULL;
 
-      is_match = g_regex_match(line_regex, line, 0, &match_info);
-      if (is_match && match_info != NULL)
+      if (use_plain_line_match)
       {
-        gint match_start = -1;
-        gint match_end = -1;
-
-        gint match_group = settings.fif_match_whole_word ? 2 : 0;
-
-        if (g_match_info_fetch_pos(match_info, match_group, &match_start, &match_end))
+        is_match = plain_text_match_in_line(line, search_text,
+          search_text_folded, settings.fif_case_sensitive, settings.fif_match_whole_word,
+          &line_offset, &selection_length);
+      }
+      else
+      {
+        is_match = g_regex_match(line_regex, line, 0, &match_info);
+        if (is_match && match_info != NULL)
         {
-          line_offset = match_start;
-          selection_length = MAX(match_end - match_start, 0);
+          gint match_start = -1;
+          gint match_end = -1;
+
+          gint match_group = settings.fif_match_whole_word ? 2 : 0;
+
+          if (g_match_info_fetch_pos(match_info, match_group, &match_start, &match_end))
+          {
+            line_offset = match_start;
+            selection_length = MAX(match_end - match_start, 0);
+          }
         }
       }
 
@@ -2010,9 +2013,98 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
     g_regex_unref(regex);
   if (line_regex != NULL)
     g_regex_unref(line_regex);
+  g_free(search_text_folded);
   g_free(dir);
   g_strfreev(argv);
   return ret;
+}
+
+
+static gboolean is_word_char(gunichar ch)
+{
+  return g_unichar_isalnum(ch) || ch == '_';
+}
+
+
+static gboolean plain_text_match_in_line(const gchar *line, const gchar *search_text,
+  const gchar *search_text_folded, gboolean case_sensitive, gboolean whole_word,
+  gint *line_offset, gint *selection_length)
+{
+  const gchar *match = NULL;
+  const gchar *search_haystack = line;
+  const gchar *search_needle = search_text;
+  gchar *line_folded = NULL;
+  gsize search_len;
+
+  if (!case_sensitive)
+  {
+    line_folded = g_utf8_strdown(line, -1);
+    if (line_folded == NULL)
+    {
+      *line_offset = -1;
+      *selection_length = 0;
+      return FALSE;
+    }
+    search_haystack = line_folded;
+    search_needle = search_text_folded;
+  }
+
+  search_len = strlen(search_needle);
+  match = search_haystack;
+
+  while ((match = g_strstr_len(match, -1, search_needle)) != NULL)
+  {
+    const gchar *match_start = match;
+    const gchar *match_end = match + search_len;
+    const gchar *line_match_start = match_start;
+    const gchar *line_match_end = match_end;
+
+    if (!case_sensitive)
+    {
+      glong start_chars = g_utf8_pointer_to_offset(search_haystack, match_start);
+      glong end_chars = g_utf8_pointer_to_offset(search_haystack, match_end);
+
+      line_match_start = g_utf8_offset_to_pointer(line, start_chars);
+      line_match_end = g_utf8_offset_to_pointer(line, end_chars);
+    }
+
+    if (!whole_word)
+    {
+      *line_offset = (gint) (line_match_start - line);
+      *selection_length = (gint) (line_match_end - line_match_start);
+      g_free(line_folded);
+      return TRUE;
+    }
+    else
+    {
+      gboolean left_ok = TRUE;
+      gboolean right_ok = TRUE;
+
+      if (line_match_start > line)
+      {
+        const gchar *prev = g_utf8_prev_char(line_match_start);
+        left_ok = !is_word_char(g_utf8_get_char(prev));
+      }
+
+      if (*line_match_end != '\0')
+        right_ok = !is_word_char(g_utf8_get_char(line_match_end));
+
+      if (left_ok && right_ok)
+      {
+        *line_offset = (gint) (line_match_start - line);
+        *selection_length = (gint) (line_match_end - line_match_start);
+        g_free(line_folded);
+        return TRUE;
+      }
+    }
+
+    match = g_utf8_next_char(match);
+  }
+
+  *line_offset = -1;
+  *selection_length = 0;
+  g_free(line_folded);
+  return FALSE;
 }
 
 

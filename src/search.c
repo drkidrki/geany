@@ -1801,6 +1801,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
   GRegex *line_regex = NULL;
   gboolean use_plain_line_match = FALSE;
   gchar *search_text_folded = NULL;
+  gboolean needle_is_ascii = TRUE;
   GSList *patterns;
   guint i;
   guint matches = 0;
@@ -1881,6 +1882,19 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
     use_plain_line_match = TRUE;
     if (!settings.fif_case_sensitive)
     {
+      const guchar *needle = (const guchar *) search_text;
+      gsize needle_len = strlen(search_text);
+      gsize j;
+
+      for (j = 0; j < needle_len; j++)
+      {
+        if (!isascii(needle[j]))
+        {
+          needle_is_ascii = FALSE;
+          break;
+        }
+      }
+
       search_text_folded = g_utf8_strdown(search_text, -1);
       if (search_text_folded == NULL)
       {
@@ -1951,7 +1965,8 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
         if (use_plain_line_match)
         {
           is_match = plain_text_match_in_line(line_start, search_text,
-            search_text_folded, settings.fif_case_sensitive, settings.fif_match_whole_word,
+            search_text_folded, needle_is_ascii, settings.fif_case_sensitive,
+            settings.fif_match_whole_word,
             &line_offset, &selection_length);
         }
         else
@@ -2045,7 +2060,8 @@ static gboolean is_word_char(gunichar ch)
   return g_unichar_isalnum(ch) || ch == '_';
 }
 
-static gboolean ascii_case_insensitive_prefilter(const gchar *line, const gchar *search_text)
+static gboolean ascii_case_insensitive_prefilter(const gchar *line, const gchar *search_text,
+  gboolean needle_is_ascii)
 {
   const guchar *haystack = (const guchar *) line;
   const guchar *needle = (const guchar *) search_text;
@@ -2055,11 +2071,8 @@ static gboolean ascii_case_insensitive_prefilter(const gchar *line, const gchar 
   if (needle_len == 0)
     return TRUE;
 
-  for (i = 0; i < needle_len; i++)
-  {
-    if (!isascii(needle[i]))
-      return TRUE;
-  }
+  if (!needle_is_ascii)
+    return TRUE;
 
   for (i = 0; haystack[i] != '\0'; i++)
   {
@@ -2089,7 +2102,8 @@ static gboolean ascii_case_insensitive_prefilter(const gchar *line, const gchar 
 
 
 static gboolean plain_text_match_in_line(const gchar *line, const gchar *search_text,
-  const gchar *search_text_folded, gboolean case_sensitive, gboolean whole_word,
+  const gchar *search_text_folded, gboolean needle_is_ascii, gboolean case_sensitive,
+  gboolean whole_word,
   gint *line_offset, gint *selection_length)
 {
   const gchar *match = NULL;
@@ -2103,7 +2117,7 @@ static gboolean plain_text_match_in_line(const gchar *line, const gchar *search_
     /* The ASCII prefilter is only a cheap gate for whether we run UTF-8 matching.
      * UTF-8-aware matching remains the source of truth, so prefilter misses can only
      * cause extra UTF-8 work, never incorrect final matches or offsets. */
-    if (!ascii_case_insensitive_prefilter(line, search_text))
+    if (!ascii_case_insensitive_prefilter(line, search_text, needle_is_ascii))
     {
       *line_offset = -1;
       *selection_length = 0;

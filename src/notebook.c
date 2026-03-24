@@ -526,6 +526,18 @@ static void on_open_in_new_window_activate(GtkMenuItem *menuitem, gpointer user_
 	g_free(doc_path);
 }
 
+static void on_copy_document_full_path_activate(GtkMenuItem *menuitem, gpointer user_data)
+{
+	GeanyDocument *doc = user_data;
+	gchar *doc_path;
+
+	g_return_if_fail(doc->is_valid);
+
+	doc_path = utils_get_locale_from_utf8(doc->file_name);
+	gtk_clipboard_set_text(gtk_clipboard_get(gdk_atom_intern("CLIPBOARD", FALSE)), doc_path, -1);
+	g_free(doc_path);
+}
+
 
 static gboolean has_tabs_on_right(GeanyDocument *doc)
 {
@@ -563,26 +575,9 @@ static void show_tab_bar_popup_menu(GdkEventButton *event, GeanyDocument *doc)
 
 	/* clear the old menu items */
 	gtk_container_foreach(GTK_CONTAINER(menu), (GtkCallback) (void(*)(void)) gtk_widget_destroy, NULL);
-
-	ui_menu_add_document_items(GTK_MENU(menu), document_get_current(),
-		G_CALLBACK(tab_bar_menu_activate_cb));
-
-	menu_item = gtk_separator_menu_item_new();
-	gtk_widget_show(menu_item);
-	gtk_container_add(GTK_CONTAINER(menu), menu_item);
-
-	menu_item = ui_image_menu_item_new(GTK_STOCK_OPEN, _("Open in New _Window"));
-	gtk_widget_show(menu_item);
-	gtk_container_add(GTK_CONTAINER(menu), menu_item);
-	g_signal_connect(menu_item, "activate",
-		G_CALLBACK(on_open_in_new_window_activate), doc);
-	/* disable if not on disk */
-	if (doc == NULL || !doc->real_path)
-		gtk_widget_set_sensitive(menu_item, FALSE);
-
-	menu_item = gtk_separator_menu_item_new();
-	gtk_widget_show(menu_item);
-	gtk_container_add(GTK_CONTAINER(menu), menu_item);
+  
+  // activate our document
+	document_show_tab(doc);  
 
 	menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_CLOSE, NULL);
 	gtk_widget_show(menu_item);
@@ -606,6 +601,25 @@ static void show_tab_bar_popup_menu(GdkEventButton *event, GeanyDocument *doc)
 	gtk_widget_show(menu_item);
 	gtk_container_add(GTK_CONTAINER(menu), menu_item);
 	g_signal_connect(menu_item, "activate", G_CALLBACK(on_close_all1_activate), NULL);
+  
+	menu_item = gtk_separator_menu_item_new();
+	gtk_widget_show(menu_item);
+	gtk_container_add(GTK_CONTAINER(menu), menu_item);
+
+	menu_item = ui_image_menu_item_new(GTK_STOCK_OPEN, _("Copy Full Path"));
+	gtk_widget_show(menu_item);
+	gtk_container_add(GTK_CONTAINER(menu), menu_item);
+	g_signal_connect(menu_item, "activate", G_CALLBACK(on_copy_document_full_path_activate), doc);
+	gtk_widget_set_sensitive(GTK_WIDGET(menu_item), (doc != NULL));
+
+	menu_item = ui_image_menu_item_new(GTK_STOCK_OPEN, _("Open in New _Window"));
+	gtk_widget_show(menu_item);
+	gtk_container_add(GTK_CONTAINER(menu), menu_item);
+	g_signal_connect(menu_item, "activate",
+		G_CALLBACK(on_open_in_new_window_activate), doc);
+	/* disable if not on disk */
+	if (doc == NULL || !doc->real_path)
+		gtk_widget_set_sensitive(menu_item, FALSE);
 
 	gtk_menu_popup_at_pointer(GTK_MENU(menu), (GdkEvent *) event);
 }

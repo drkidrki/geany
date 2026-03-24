@@ -2045,6 +2045,48 @@ static gboolean is_word_char(gunichar ch)
   return g_unichar_isalnum(ch) || ch == '_';
 }
 
+static gboolean ascii_case_insensitive_prefilter(const gchar *line, const gchar *search_text)
+{
+  const guchar *haystack = (const guchar *) line;
+  const guchar *needle = (const guchar *) search_text;
+  gsize needle_len = strlen(search_text);
+  gsize i;
+
+  if (needle_len == 0)
+    return TRUE;
+
+  for (i = 0; i < needle_len; i++)
+  {
+    if (!isascii(needle[i]))
+      return TRUE;
+  }
+
+  for (i = 0; haystack[i] != '\0'; i++)
+  {
+    gsize j;
+
+    if (!isascii(haystack[i]))
+      return TRUE;
+
+    for (j = 0; j < needle_len; j++)
+    {
+      guchar hay_ch = haystack[i + j];
+
+      if (hay_ch == '\0')
+        return FALSE;
+      if (!isascii(hay_ch))
+        return TRUE;
+      if (g_ascii_tolower(hay_ch) != g_ascii_tolower(needle[j]))
+        break;
+    }
+
+    if (j == needle_len)
+      return TRUE;
+  }
+
+  return FALSE;
+}
+
 
 static gboolean plain_text_match_in_line(const gchar *line, const gchar *search_text,
   const gchar *search_text_folded, gboolean case_sensitive, gboolean whole_word,
@@ -2058,6 +2100,16 @@ static gboolean plain_text_match_in_line(const gchar *line, const gchar *search_
 
   if (!case_sensitive)
   {
+    /* The ASCII prefilter is only a cheap gate for whether we run UTF-8 matching.
+     * UTF-8-aware matching remains the source of truth, so prefilter misses can only
+     * cause extra UTF-8 work, never incorrect final matches or offsets. */
+    if (!ascii_case_insensitive_prefilter(line, search_text))
+    {
+      *line_offset = -1;
+      *selection_length = 0;
+      return FALSE;
+    }
+
     line_folded = g_utf8_strdown(line, -1);
     if (line_folded == NULL)
     {

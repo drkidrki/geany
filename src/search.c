@@ -1800,23 +1800,29 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
   gchar *utf8_str;
 
   if (EMPTY(utf8_search_text) || ! utf8_dir) return TRUE;
-
+  
   dir = utils_get_locale_from_utf8(utf8_dir);
+  
+  const gboolean bSearchInRootTarget = app->project && g_strcmp0(dir, PROJECT_ROOT_TARGET_DIRECTORY)==0;
+  const gboolean bSearchInProjectFiles = app->project && g_strcmp0(dir, PROJECT_FILES_TARGET_DIRECTORY)==0;
+  
   // replace base path macro directory
-  if(app->project && g_strcmp0(dir, PROJECT_ROOT_TARGET_DIRECTORY)==0) {
+  if(bSearchInRootTarget) {
     g_free(dir);
     dir = g_strdup(app->project->base_path);
   }
-  patterns = get_fif_patterns();
+  patterns = bSearchInProjectFiles ? NULL : get_fif_patterns();
   argv = search_get_argv(dir, patterns, settings.fif_recursive, NULL);
+  if(patterns!=NULL) {
+    free_pattern_specs(patterns);
+  }
   if (argv == NULL)
   {
-    free_pattern_specs(patterns);
     g_free(dir);
     return FALSE;
   }
   // replace project files macro directory
-  if(app->project && g_strcmp0(dir, PROJECT_FILES_TARGET_DIRECTORY)==0) {
+  if(bSearchInProjectFiles) {
     g_free(dir);
     dir = g_strdup(app->project->base_path);
   }
@@ -1833,7 +1839,6 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
   {
     ui_progress_bar_stop();
     g_strfreev(argv);
-    free_pattern_specs(patterns);
     g_free(dir);
     return FALSE;
   }
@@ -1855,7 +1860,6 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
         ui_progress_bar_stop();
         g_free(line_pattern);
         g_strfreev(argv);
-        free_pattern_specs(patterns);
         g_regex_unref(regex);
         g_free(dir);
         return FALSE;
@@ -1886,7 +1890,6 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
       g_free(line_pattern);
       g_free(quoted);
       g_strfreev(argv);
-      free_pattern_specs(patterns);
       g_free(dir);
       return FALSE;
     }
@@ -2007,7 +2010,6 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
     g_regex_unref(regex);
   if (line_regex != NULL)
     g_regex_unref(line_regex);
-  free_pattern_specs(patterns);
   g_free(dir);
   g_strfreev(argv);
   return ret;

@@ -85,6 +85,7 @@ libgeany_la_SOURCES = \
 	highlightingmappings.h \
 	keybindings.c keybindings.h \
 	keyfile.c keyfile.h \
+	json_parser.c json_parser.h \
 	log.c log.h \
 	libmain.c main.h geany.h \
 	msgwindow.c msgwindow.h \

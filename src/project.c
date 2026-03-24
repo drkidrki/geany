@@ -36,6 +36,7 @@
 #include "filetypesprivate.h"
 #include "geanyobject.h"
 #include "keyfile.h"
+#include "json_parser.h"
 #include "main.h"
 #include "projectprivate.h"
 #include "sidebar.h"
@@ -98,10 +99,6 @@ static void _collectProjectFiles(GeanyProject *project, const gchar *collect_bas
   GStrv file_specs, GStrv filter_extensions);
 static void _collectProjectFilesRecursive(const gchar *abs_path, const gchar *rel_path,
   GeanyProjectItem *parent, GStrv filter_extensions);
-static gboolean json_extract_string_member(const gchar *json_data, const gchar *member,
-  gchar **value);
-static GStrv json_extract_string_array_member(const gchar *json_data, const gchar *member);
-static gchar *json_unescape_string(const gchar *escaped);
 static GStrv parse_filter_extensions(const gchar *filter_value);
 static GStrv parse_filter_patterns(const gchar *filter_value);
 static gboolean project_file_matches_filter(const gchar *filename, GStrv filter_extensions);
@@ -1128,135 +1125,6 @@ static void project_item_free(gpointer data)
 }
 
 
-static gboolean json_extract_string_member(const gchar *json_data, const gchar *member,
-  gchar **value)
-{
-  GRegex *regex;
-  GMatchInfo *match_info = NULL;
-  gchar *pattern;
-  gchar *escaped = NULL;
-
-  g_return_val_if_fail(json_data != NULL && member != NULL && value != NULL, FALSE);
-
-  pattern = g_strdup_printf("\"%s\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"", member);
-  regex = g_regex_new(pattern, G_REGEX_DOTALL, 0, NULL);
-  g_free(pattern);
-
-  if (!g_regex_match(regex, json_data, 0, &match_info))
-  {
-    g_match_info_free(match_info);
-    g_regex_unref(regex);
-    return FALSE;
-  }
-
-  escaped = g_match_info_fetch(match_info, 1);
-  *value = json_unescape_string(escaped);
-
-  g_free(escaped);
-  g_match_info_free(match_info);
-  g_regex_unref(regex);
-  return TRUE;
-}
-
-
-static GStrv json_extract_string_array_member(const gchar *json_data, const gchar *member)
-{
-  GRegex *array_regex;
-  GRegex *item_regex;
-  GMatchInfo *array_match = NULL;
-  GMatchInfo *item_match = NULL;
-  gchar *array_pattern;
-  gchar *array_content = NULL;
-  GPtrArray *items;
-  GStrv result;
-
-  g_return_val_if_fail(json_data != NULL && member != NULL, NULL);
-
-  array_pattern = g_strdup_printf("\"%s\"\\s*:\\s*\\[(.*?)\\]", member);
-  array_regex = g_regex_new(array_pattern, G_REGEX_DOTALL, 0, NULL);
-  g_free(array_pattern);
-
-  if (!g_regex_match(array_regex, json_data, 0, &array_match))
-  {
-    g_match_info_free(array_match);
-    g_regex_unref(array_regex);
-    return NULL;
-  }
-
-  array_content = g_match_info_fetch(array_match, 1);
-  g_match_info_free(array_match);
-  g_regex_unref(array_regex);
-
-  item_regex = g_regex_new("\"((?:\\\\.|[^\"\\\\])*)\"", G_REGEX_DOTALL, 0, NULL);
-  items = g_ptr_array_new_with_free_func(g_free);
-
-  g_regex_match(item_regex, array_content, 0, &item_match);
-  while (g_match_info_matches(item_match))
-  {
-    gchar *escaped = g_match_info_fetch(item_match, 1);
-    g_ptr_array_add(items, json_unescape_string(escaped));
-    g_free(escaped);
-    g_match_info_next(item_match, NULL);
-  }
-
-  g_match_info_free(item_match);
-  g_regex_unref(item_regex);
-  g_free(array_content);
-
-  g_ptr_array_add(items, NULL);
-  result = (GStrv) g_ptr_array_free(items, FALSE);
-  return result;
-}
-
-
-static gchar *json_unescape_string(const gchar *escaped)
-{
-  GString *result;
-  const gchar *p;
-
-  g_return_val_if_fail(escaped != NULL, NULL);
-
-  result = g_string_new(NULL);
-  for (p = escaped; *p != '\0'; p++)
-  {
-    if (*p == '\\' && *(p + 1) != '\0')
-    {
-      p++;
-      switch (*p)
-      {
-        case '"':
-        case '\\':
-        case '/':
-          g_string_append_c(result, *p);
-          break;
-        case 'b':
-          g_string_append_c(result, '\b');
-          break;
-        case 'f':
-          g_string_append_c(result, '\f');
-          break;
-        case 'n':
-          g_string_append_c(result, '\n');
-          break;
-        case 'r':
-          g_string_append_c(result, '\r');
-          break;
-        case 't':
-          g_string_append_c(result, '\t');
-          break;
-        default:
-          g_string_append_c(result, *p);
-          break;
-      }
-    }
-    else
-      g_string_append_c(result, *p);
-  }
-
-  return g_string_free(result, FALSE);
-}
-
-
 static GStrv parse_filter_extensions(const gchar *filter_value)
 {
   gchar **values;
@@ -1582,13 +1450,13 @@ static gboolean load_config(const gchar *filename)
   if (!g_file_get_contents(filename, &project_data, NULL, NULL))
     return FALSE;
 
-  if (!json_extract_string_member(project_data, "root", &project_root))
+  if (!geany_json_extract_string_member(project_data, "root", &project_root))
     goto cleanup;
 
-  if (!json_extract_string_member(project_data, "filter", &project_filter))
+  if (!geany_json_extract_string_member(project_data, "filter", &project_filter))
     project_filter = g_strdup("");
 
-  project_files = json_extract_string_array_member(project_data, "files");
+  project_files = geany_json_extract_string_array_member(project_data, "files");
   project_dir = g_path_get_dirname(filename);
   project_name = g_path_get_basename(filename);
 

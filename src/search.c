@@ -1903,7 +1903,6 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
     gchar *utf8_path;
     gchar *contents;
     gchar *utf8_contents;
-    gchar **lines;
     guint j;
 
     utf8_path = utils_get_utf8_from_locale(locale_path);
@@ -1926,65 +1925,86 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
     else
       utf8_contents = g_strdup(contents);
 
-    lines = g_strsplit(utf8_contents, "\n", -1);
-    for (j = 0; lines[j] != NULL; j++)
+    j = 0;
     {
-      gboolean is_match = FALSE;
-      gint line_offset = -1;
-      gint selection_length = 0;
-      gchar *line = lines[j];
-      GMatchInfo *match_info = NULL;
+      gchar *line_start = utf8_contents;
+      gchar *p = utf8_contents;
+      const gsize total_len = strlen(utf8_contents);
 
-      if (use_plain_line_match)
+      while (TRUE)
       {
-        is_match = plain_text_match_in_line(line, search_text,
-          search_text_folded, settings.fif_case_sensitive, settings.fif_match_whole_word,
-          &line_offset, &selection_length);
-      }
-      else
-      {
-        is_match = g_regex_match(line_regex, line, 0, &match_info);
-        if (is_match && match_info != NULL)
+        gboolean has_newline = FALSE;
+        gchar *newline = memchr(p, '\n', total_len - (gsize)(p - utf8_contents));
+        gchar saved_newline = '\0';
+        gboolean is_match = FALSE;
+        gint line_offset = -1;
+        gint selection_length = 0;
+        GMatchInfo *match_info = NULL;
+
+        if (newline != NULL)
         {
-          gint match_start = -1;
-          gint match_end = -1;
+          has_newline = TRUE;
+          saved_newline = *newline;
+          *newline = '\0';
+        }
 
-          gint match_group = settings.fif_match_whole_word ? 2 : 0;
-
-          if (g_match_info_fetch_pos(match_info, match_group, &match_start, &match_end))
+        if (use_plain_line_match)
+        {
+          is_match = plain_text_match_in_line(line_start, search_text,
+            search_text_folded, settings.fif_case_sensitive, settings.fif_match_whole_word,
+            &line_offset, &selection_length);
+        }
+        else
+        {
+          is_match = g_regex_match(line_regex, line_start, 0, &match_info);
+          if (is_match && match_info != NULL)
           {
-            line_offset = match_start;
-            selection_length = MAX(match_end - match_start, 0);
+            gint match_start = -1;
+            gint match_end = -1;
+
+            gint match_group = settings.fif_match_whole_word ? 2 : 0;
+
+            if (g_match_info_fetch_pos(match_info, match_group, &match_start, &match_end))
+            {
+              line_offset = match_start;
+              selection_length = MAX(match_end - match_start, 0);
+            }
           }
         }
+
+        if (settings.fif_invert_results)
+        {
+          is_match = !is_match;
+          line_offset = -1;
+          selection_length = 0;
+        }
+
+        if (is_match)
+        {
+          gchar *line_copy = g_strdup(line_start);
+          gchar *message;
+
+          g_strstrip(line_copy);
+          message = g_strdup_printf("%s:%d: %s", argv[i], j + 1, line_copy);
+          msgwin_msg_add_string_with_pos(COLOR_BLACK, -1, NULL,
+            line_offset, selection_length, message);
+          matches++;
+          g_free(message);
+          g_free(line_copy);
+        }
+
+        if (match_info != NULL)
+          g_match_info_free(match_info);
+
+        if (!has_newline)
+          break;
+
+        *newline = saved_newline;
+        p = newline + 1;
+        line_start = p;
+        j++;
       }
-
-      if (settings.fif_invert_results)
-      {
-        is_match = !is_match;
-        line_offset = -1;
-        selection_length = 0;
-      }
-
-      if (is_match)
-      {
-        gchar *line_copy = g_strdup(line);
-        gchar *message;
-
-        g_strstrip(line_copy);
-        message = g_strdup_printf("%s:%d: %s", argv[i], j + 1, line_copy);
-        msgwin_msg_add_string_with_pos(COLOR_BLACK, -1, NULL,
-          line_offset, selection_length, message);
-        matches++;
-        g_free(message);
-        g_free(line_copy);
-      }
-
-      if (match_info != NULL)
-        g_match_info_free(match_info);
     }
-
-    g_strfreev(lines);
     g_free(utf8_contents);
     g_free(contents);
     g_free(locale_path);

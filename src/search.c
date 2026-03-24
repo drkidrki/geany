@@ -1028,8 +1028,8 @@ static void create_fif_dialog(void)
   g_object_unref(G_OBJECT(size_group)); /* auto destroy the size group */
 
   gtk_box_pack_start(GTK_BOX(vbox), sbox, TRUE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), dbox, TRUE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), ebox, TRUE, FALSE, 0);
 
   check_regexp = gtk_check_button_new_with_mnemonic(_("Use re_gular expressions"));

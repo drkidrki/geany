@@ -579,7 +579,7 @@ static void show_tab_bar_popup_menu(GdkEventButton *event, GeanyDocument *doc)
   // activate our document
 	document_show_tab(doc);  
 
-	menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_CLOSE, NULL);
+	menu_item = ui_image_menu_item_new(GTK_STOCK_CLOSE, _("_Close"));
 	gtk_widget_show(menu_item);
 	gtk_container_add(GTK_CONTAINER(menu), menu_item);
 	g_signal_connect(menu_item, "activate", G_CALLBACK(notebook_tab_close_clicked_cb), doc);

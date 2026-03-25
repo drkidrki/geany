@@ -163,6 +163,7 @@ typedef struct GeanyEditor
 	gboolean		 auto_indent;	/**< @c TRUE if auto-indentation is enabled. */
 	/** Percentage to scroll view by on paint, if positive. */
 	gfloat			 scroll_percent;
+	gint			 scroll_to_line;
 	GeanyIndentType	 indent_type;	/* Use editor_get_indent_prefs() instead. */
 	gboolean		 line_breaking;	/**< Whether to split long lines as you type. */
 	gint			 indent_width;
@@ -202,7 +203,7 @@ void editor_insert_text_block(GeanyEditor *editor, const gchar *text,
 
 gint editor_get_eol_char_mode(GeanyEditor *editor);
 
-gboolean editor_goto_pos(GeanyEditor *editor, gint pos, gboolean mark);
+gboolean editor_goto_pos(GeanyEditor *editor, gint pos, gboolean mark, gboolean bDelayGotoLine);
 
 const gchar *editor_find_snippet(GeanyEditor *editor, const gchar *snippet_name);
 

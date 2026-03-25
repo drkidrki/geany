@@ -33,7 +33,7 @@
 
 G_BEGIN_DECLS
 
-gboolean navqueue_goto_line(GeanyDocument *old_doc, GeanyDocument *new_doc, gint line);
+gboolean navqueue_goto_line(GeanyDocument *old_doc, GeanyDocument *new_doc, gint line, gboolean bDelayGotoLine);
 
 
 #ifdef GEANY_PRIVATE

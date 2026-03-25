@@ -815,7 +815,7 @@ static gboolean goto_compiler_file_line(const gchar *fname, gint line, gboolean 
 			if (! doc->changed && editor_prefs.use_indicators)	/* if modified, line may be wrong */
 				editor_indicator_set_on_line(doc->editor, GEANY_INDICATOR_ERROR, line - 1);
 
-			ret = navqueue_goto_line(old_doc, doc, line);
+			ret = navqueue_goto_line(old_doc, doc, line, FALSE);
 			if (ret && focus_editor)
 				gtk_widget_grab_focus(GTK_WIDGET(doc->editor->sci));
 
@@ -1216,7 +1216,7 @@ gboolean msgwin_goto_messages_file_line(gboolean focus_editor)
 			}
 			else
 			{
-				ret = navqueue_goto_line(old_doc, doc, line);
+				ret = navqueue_goto_line(old_doc, doc, line, FALSE);
 				if (ret && line_offset >= 0)
 				{
 					ScintillaObject *sci = doc->editor->sci;
@@ -1239,11 +1239,18 @@ gboolean msgwin_goto_messages_file_line(gboolean focus_editor)
 			msgwin_parse_generic_line(string, &filename, &line);
 			if (filename != NULL)
 			{
-				/* use document_open_file to find an already open file, or open it in place */
-				doc = document_open_file(filename, FALSE, NULL, NULL);
+				// check if file if is already opened
+				gboolean bDocumentOpened = false;
+				doc = document_find_by_filename(filename);
+				// if not
+				if(doc==NULL) {
+					// open it now
+					doc = document_open_file(filename, FALSE, NULL, NULL);
+					bDocumentOpened = true;
+				}
 				if (doc != NULL)
 				{
-					ret = (line < 0) ? TRUE : navqueue_goto_line(old_doc, doc, line);
+					ret = (line < 0) ? TRUE : navqueue_goto_line(old_doc, doc, line, bDocumentOpened);
 					if (ret && line_offset >= 0 && line > 0)
 					{
 						ScintillaObject *sci = doc->editor->sci;

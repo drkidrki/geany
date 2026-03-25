@@ -833,7 +833,7 @@ GeanyDocument *document_new_file(const gchar *utf8_filename, GeanyFiletype *ft, 
 		DOC_FILENAME(doc));
 
 	/* bring it in front, jump to the start and grab the focus */
-	editor_goto_pos(doc->editor, 0, FALSE);
+	editor_goto_pos(doc->editor, 0, FALSE, FALSE);
 
 	return doc;
 }
@@ -1459,7 +1459,7 @@ GeanyDocument *document_open_file_full(GeanyDocument *doc, const gchar *filename
 	/* set the cursor position according to pos, cl_options.goto_line and cl_options.goto_column */
 	pos = set_cursor_position(doc->editor, pos);
 	/* now bring the file in front */
-	editor_goto_pos(doc->editor, pos, FALSE);
+	editor_goto_pos(doc->editor, pos, FALSE, FALSE);
 
 	return doc;
 }

@@ -1286,6 +1286,12 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *object, GeanyEditor *edi
 			 * and having the cursor scroll in view. */
 			 /* FIXME: Really we want to do this just before painting, not after it
 			  * as it will cause repainting. */
+			if (editor->scroll_to_line != -1) {
+				if(!editor_line_in_view(editor, editor->scroll_to_line)) {
+					editor->scroll_percent = 0.5F;
+				}
+				editor->scroll_to_line = -1;
+			}
 			if (editor->scroll_percent > 0.0F)
 			{
 				editor_scroll_to_line(editor, -1, editor->scroll_percent);
@@ -4899,7 +4905,7 @@ gboolean editor_goto_line(GeanyEditor *editor, gint line_no, gboolean offset)
 			: line_no - 1;
 
 	gint pos = sci_get_position_from_line(editor->sci, line_no);
-	return editor_goto_pos(editor, pos, set_marker);
+	return editor_goto_pos(editor, pos, set_marker, FALSE);
 }
 
 
@@ -4914,7 +4920,7 @@ gboolean editor_goto_line(GeanyEditor *editor, gint line_no, gboolean offset)
  *  @since 0.20
  **/
 GEANY_API_SYMBOL
-gboolean editor_goto_pos(GeanyEditor *editor, gint pos, gboolean mark)
+gboolean editor_goto_pos(GeanyEditor *editor, gint pos, gboolean mark, gboolean bDelayGotoLine)
 {
 	g_return_val_if_fail(editor, FALSE);
 	if (G_UNLIKELY(pos < 0))
@@ -4927,9 +4933,13 @@ gboolean editor_goto_pos(GeanyEditor *editor, gint pos, gboolean mark)
 		sci_marker_delete_all(editor->sci, 0);
 		sci_set_marker_at_line(editor->sci, line, 0);
 	}
-
-	if (! editor_line_in_view(editor, line))
-		editor->scroll_percent = 0.5F;
+  
+	if(bDelayGotoLine) {
+		editor->scroll_to_line = line;
+	} else {
+		if(!editor_line_in_view(editor, line))
+			editor->scroll_percent = 0.5F;
+	}
 	sci_goto_pos(editor->sci, pos, TRUE);
 
 	/* switch to the page */
@@ -5211,6 +5221,7 @@ GeanyEditor *editor_create(GeanyDocument *doc)
 	editor->auto_indent = (iprefs->auto_indent_mode != GEANY_AUTOINDENT_NONE);
 	editor->line_wrapping = get_project_pref(line_wrapping);
 	editor->scroll_percent = -1.0F;
+	editor->scroll_to_line = -1;
 	editor->line_breaking = FALSE;
 	editor->auto_mark_all_last_start = -1;
 	editor->auto_mark_all_last_end = -1;

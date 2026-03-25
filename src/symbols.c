@@ -1463,7 +1463,7 @@ static void on_goto_popup_item_activate(GtkMenuItem *item, TMTag *tag)
 	new_doc = document_open_file(tag->file->file_name, FALSE, NULL, NULL);
 
 	if (new_doc)
-		navqueue_goto_line(old_doc, new_doc, tag->line);
+		navqueue_goto_line(old_doc, new_doc, tag->line, FALSE);
 }
 
 
@@ -1731,7 +1731,7 @@ static gboolean goto_tag(const gchar *name, gboolean definition)
 			/* not found in opened document, should open */
 			new_doc = document_open_file(tmtag->file->file_name, FALSE, NULL, NULL);
 
-		navqueue_goto_line(old_doc, new_doc, tmtag->line);
+		navqueue_goto_line(old_doc, new_doc, tmtag->line, FALSE);
 	}
 	else if (tags->len > 1)
 	{

@@ -186,8 +186,8 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *dir, const gcha
 
 static gboolean
 plain_text_match_in_line(const gchar *line, const gchar *search_text,
-  const gchar *search_text_folded, gboolean case_sensitive, gboolean whole_word,
-  gint *line_offset, gint *selection_length);
+  const gchar *search_text_folded, gboolean needle_is_ascii, gboolean case_sensitive,
+  gboolean whole_word, gint *line_offset, gint *selection_length);
 
 
 static void init_prefs(void)

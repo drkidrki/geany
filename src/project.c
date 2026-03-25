@@ -1428,9 +1428,9 @@ static void _collectProjectFiles(GeanyProject *project, const gchar *collect_bas
 static gboolean load_config(const gchar *filename)
 {
   GKeyFile *config;
+  GKeyFile *project_kf = NULL;
   GeanyProject *p;
   GSList *node;
-  gchar *project_data = NULL;
   gchar *project_dir = NULL;
   gchar *project_root = NULL;
   gchar *project_filter = NULL;
@@ -1447,16 +1447,14 @@ static gboolean load_config(const gchar *filename)
   if (! g_file_test(filename, G_FILE_TEST_EXISTS))
     return FALSE;
 
-  if (!g_file_get_contents(filename, &project_data, NULL, NULL))
-    return FALSE;
-
-  if (!geany_json_extract_string_member(project_data, "root", &project_root))
+  project_kf = g_key_file_new();
+  if (!g_key_file_load_from_file(project_kf, filename, G_KEY_FILE_NONE, NULL))
     goto cleanup;
 
-  if (!geany_json_extract_string_member(project_data, "filter", &project_filter))
-    project_filter = g_strdup("");
+  project_root = utils_get_setting_string(project_kf, "project", "root", "");
+  project_filter = utils_get_setting_string(project_kf, "project", "filter", "");
+  project_files = g_key_file_get_string_list(project_kf, "project", "files", NULL, NULL);
 
-  project_files = geany_json_extract_string_array_member(project_data, "files");
   project_dir = g_path_get_dirname(filename);
   project_name = g_path_get_basename(filename);
 
@@ -1524,6 +1522,8 @@ static gboolean load_config(const gchar *filename)
   update_ui();
 
 cleanup:
+  if (project_kf != NULL)
+    g_key_file_free(project_kf);
   g_free(collect_base_path);
   g_strfreev(filter_extensions);
   g_strfreev(project_files);
@@ -1531,7 +1531,6 @@ cleanup:
   g_free(project_filter);
   g_free(project_root);
   g_free(project_dir);
-  g_free(project_data);
 
   return loaded;
 }

@@ -1385,13 +1385,32 @@ static void _collectProjectFiles(GeanyProject *project, const gchar *collect_bas
 
     if (g_file_test(abs_path, G_FILE_TEST_IS_DIR))
     {
+      gchar *dirname = g_path_get_dirname(spec);
       gchar *name = g_path_get_basename(spec);
-      GeanyProjectItem *folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, name, spec, abs_path);
-      _collectProjectFilesRecursive(abs_path, spec, folder, filter_extensions);
-      if (folder->children->len > 0)
-        g_ptr_array_add(project->priv->project_root->children, folder);
+      GeanyProjectItem *parent;
+      GeanyProjectItem *folder;
+
+      if (!utils_str_equal(dirname, "."))
+        parent = project_item_ensure_folder_path(project->priv->project_root, dirname,
+          collect_base_path);
       else
+        parent = project->priv->project_root;
+
+      folder = project_item_find_child_folder(parent, name);
+      if (folder == NULL)
+      {
+        folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, name, spec, abs_path);
+        g_ptr_array_add(parent->children, folder);
+      }
+
+      _collectProjectFilesRecursive(abs_path, spec, folder, filter_extensions);
+      if (folder->children->len == 0)
+      {
+        g_ptr_array_remove(parent->children, folder);
         project_item_free(folder);
+      }
+
+      g_free(dirname);
       g_free(name);
     }
     else if (g_file_test(abs_path, G_FILE_TEST_IS_REGULAR))

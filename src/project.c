@@ -1656,7 +1656,6 @@ static gboolean write_config(void)
 {
   GeanyProject *p;
   GKeyFile *config;
-  GKeyFile *project_kf;
   gchar *filename;
   gchar *data;
   gboolean ret = FALSE;
@@ -1675,7 +1674,8 @@ static gboolean write_config(void)
   g_free(filenameNoExt);
   g_free(filenameBase);
 
-  project_kf = g_key_file_new();
+  /*
+  GKeyFile *project_kf = g_key_file_new();
   filename = utils_get_locale_from_utf8(p->file_name);
   g_key_file_load_from_file(project_kf, filename, G_KEY_FILE_NONE, NULL);
   g_key_file_set_string(project_kf, "project", "ignore_filter", FALLBACK(p->ignore_filter, ""));
@@ -1688,7 +1688,7 @@ static gboolean write_config(void)
   {
     g_free(filenameSession);
     return FALSE;
-  }
+  }*/
 
   config = g_key_file_new();
   /* try to load an existing config to keep manually added comments */

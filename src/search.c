@@ -1806,6 +1806,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
   guint i;
   guint matches = 0;
   gchar *utf8_str;
+  GHashTable *open_docs_by_filename;
 
   if (EMPTY(utf8_search_text) || ! utf8_dir) return TRUE;
   
@@ -1910,6 +1911,18 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
   msgwin_msg_add_string(COLOR_BLUE, -1, NULL, utf8_str);
   g_free(utf8_str);
 
+  open_docs_by_filename = g_hash_table_new(g_str_hash, g_str_equal);
+  for (i = 0; i < documents_array->len; i++)
+  {
+    GeanyDocument *open_doc = documents[i];
+
+    if (!open_doc->is_valid || open_doc->file_name == NULL)
+      continue;
+
+    if (g_hash_table_lookup(open_docs_by_filename, open_doc->file_name) == NULL)
+      g_hash_table_insert(open_docs_by_filename, open_doc->file_name, open_doc);
+  }
+
   for (i = 0; argv[i] != NULL; i++)
   {
     gchar *locale_path = g_build_filename(dir, argv[i], NULL);
@@ -1920,7 +1933,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
     guint j;
 
     utf8_path = utils_get_utf8_from_locale(locale_path);
-    doc = document_find_by_filename(utf8_path);
+    doc = g_hash_table_lookup(open_docs_by_filename, utf8_path);
     g_free(utf8_path);
     if (doc != NULL && doc->editor != NULL)
       contents = sci_get_contents(doc->editor->sci, -1);
@@ -2048,6 +2061,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
     g_regex_unref(regex);
   if (line_regex != NULL)
     g_regex_unref(line_regex);
+  g_hash_table_destroy(open_docs_by_filename);
   g_free(search_text_folded);
   g_free(dir);
   g_strfreev(argv);

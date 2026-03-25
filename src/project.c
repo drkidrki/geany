@@ -96,12 +96,15 @@ static GeanyProjectItem *project_item_new(GeanyProjectItemType type,
   const gchar *name, const gchar *rel_path, const gchar *abs_path);
 static void project_item_free(gpointer data);
 static void _collectProjectFiles(GeanyProject *project, const gchar *collect_base_path,
-  GStrv file_specs, GStrv filter_extensions);
+  GStrv file_specs, GStrv filter_extensions, GStrv ignore_patterns);
 static void _collectProjectFilesRecursive(const gchar *abs_path, const gchar *rel_path,
-  GeanyProjectItem *parent, GStrv filter_extensions);
+  GeanyProjectItem *parent, GStrv filter_extensions, GStrv ignore_patterns);
 static GStrv parse_filter_extensions(const gchar *filter_value);
 static GStrv parse_filter_patterns(const gchar *filter_value);
+static GStrv parse_ignore_patterns(const gchar *ignore_filter);
 static gboolean project_file_matches_filter(const gchar *filename, GStrv filter_extensions);
+static gboolean project_path_matches_ignore_patterns(const gchar *rel_path, gboolean is_dir,
+  GStrv ignore_patterns);
 
 
 #define SHOW_ERR(args) dialogs_show_msgbox(GTK_MESSAGE_ERROR, args)
@@ -472,6 +475,7 @@ static void destroy_project(gboolean open_default)
   g_free(app->project->file_name);
   g_free(app->project->base_path);
   g_strfreev(app->project->file_patterns);
+  g_free(app->project->ignore_filter);
   if (app->project->priv->project_root != NULL)
     project_item_free(app->project->priv->project_root);
 
@@ -713,6 +717,7 @@ static GeanyProject *create_project(void)
   init_stash_prefs();
 
   project->file_patterns = NULL;
+  project->ignore_filter = NULL;
 
   project->priv->long_line_behaviour = 1 /* use global settings */;
   project->priv->long_line_column = editor_prefs.long_line_column;
@@ -1175,6 +1180,37 @@ static GStrv parse_filter_patterns(const gchar *filter_value)
 }
 
 
+static GStrv parse_ignore_patterns(const gchar *ignore_filter)
+{
+  gchar **values;
+  GPtrArray *patterns;
+  gint i;
+
+  if (EMPTY(ignore_filter))
+    return NULL;
+
+  values = g_strsplit(ignore_filter, ";", -1);
+  patterns = g_ptr_array_new_with_free_func(g_free);
+
+  for (i = 0; values[i] != NULL; i++)
+  {
+    gchar *trimmed = g_strstrip(values[i]);
+    gchar *normalized;
+
+    if (EMPTY(trimmed))
+      continue;
+
+    normalized = g_strdup(trimmed);
+    g_strdelimit(normalized, "\\", '/');
+    g_ptr_array_add(patterns, normalized);
+  }
+
+  g_strfreev(values);
+  g_ptr_array_add(patterns, NULL);
+  return (GStrv) g_ptr_array_free(patterns, FALSE);
+}
+
+
 static gboolean project_file_matches_filter(const gchar *filename, GStrv filter_extensions)
 {
   const gchar *ext;
@@ -1193,6 +1229,39 @@ static gboolean project_file_matches_filter(const gchar *filename, GStrv filter_
       return TRUE;
   }
 
+  return FALSE;
+}
+
+
+static gboolean project_path_matches_ignore_patterns(const gchar *rel_path, gboolean is_dir,
+  GStrv ignore_patterns)
+{
+  gchar *normalized;
+  gchar *with_slash = NULL;
+  gint i;
+
+  if (ignore_patterns == NULL || ignore_patterns[0] == NULL || EMPTY(rel_path))
+    return FALSE;
+
+  normalized = g_strdup(rel_path);
+  g_strdelimit(normalized, "\\", '/');
+
+  if (is_dir)
+    with_slash = g_strconcat(normalized, "/", NULL);
+
+  for (i = 0; ignore_patterns[i] != NULL; i++)
+  {
+    if (g_pattern_match_simple(ignore_patterns[i], normalized) ||
+      (with_slash != NULL && g_pattern_match_simple(ignore_patterns[i], with_slash)))
+    {
+      g_free(with_slash);
+      g_free(normalized);
+      return TRUE;
+    }
+  }
+
+  g_free(with_slash);
+  g_free(normalized);
   return FALSE;
 }
 
@@ -1278,7 +1347,7 @@ static GeanyProjectItem *project_item_ensure_folder_path(GeanyProjectItem *root,
 
 
 static void _collectProjectFilesRecursive(const gchar *abs_path, const gchar *rel_path,
-  GeanyProjectItem *parent, GStrv filter_extensions)
+  GeanyProjectItem *parent, GStrv filter_extensions, GStrv ignore_patterns)
 {
   GDir *dir;
   GPtrArray *directories;
@@ -1324,8 +1393,9 @@ static void _collectProjectFilesRecursive(const gchar *abs_path, const gchar *re
     gchar *entry_rel = EMPTY(rel_path) ? g_strdup(dirname) : g_build_filename(rel_path, dirname, NULL);
     GeanyProjectItem *folder = project_item_new(GEANY_PROJECT_ITEM_FOLDER, dirname, entry_rel, entry_abs);
 
-    _collectProjectFilesRecursive(entry_abs, entry_rel, folder, filter_extensions);
-    if (folder->children->len > 0)
+    if (!project_path_matches_ignore_patterns(entry_rel, TRUE, ignore_patterns))
+      _collectProjectFilesRecursive(entry_abs, entry_rel, folder, filter_extensions, ignore_patterns);
+    if (folder->children->len > 0 && !project_path_matches_ignore_patterns(entry_rel, TRUE, ignore_patterns))
       g_ptr_array_add(parent->children, folder);
     else
       project_item_free(folder);
@@ -1339,8 +1409,11 @@ static void _collectProjectFilesRecursive(const gchar *abs_path, const gchar *re
     const gchar *filename = g_ptr_array_index(files, i);
     gchar *entry_abs = g_build_filename(abs_path, filename, NULL);
     gchar *entry_rel = EMPTY(rel_path) ? g_strdup(filename) : g_build_filename(rel_path, filename, NULL);
-    GeanyProjectItem *file = project_item_new(GEANY_PROJECT_ITEM_FILE, filename, entry_rel, entry_abs);
-    g_ptr_array_add(parent->children, file);
+    if (!project_path_matches_ignore_patterns(entry_rel, FALSE, ignore_patterns))
+    {
+      GeanyProjectItem *file = project_item_new(GEANY_PROJECT_ITEM_FILE, filename, entry_rel, entry_abs);
+      g_ptr_array_add(parent->children, file);
+    }
     g_free(entry_rel);
     g_free(entry_abs);
   }
@@ -1352,7 +1425,7 @@ static void _collectProjectFilesRecursive(const gchar *abs_path, const gchar *re
 
 
 static void _collectProjectFiles(GeanyProject *project, const gchar *collect_base_path,
-  GStrv file_specs, GStrv filter_extensions)
+  GStrv file_specs, GStrv filter_extensions, GStrv ignore_patterns)
 {
   gint i;
 
@@ -1382,6 +1455,12 @@ static void _collectProjectFiles(GeanyProject *project, const gchar *collect_bas
     g_strdelimit(spec, "/", G_DIR_SEPARATOR);
 
     abs_path = g_build_filename(collect_base_path, spec, NULL);
+    if (project_path_matches_ignore_patterns(spec, g_file_test(abs_path, G_FILE_TEST_IS_DIR), ignore_patterns))
+    {
+      g_free(abs_path);
+      g_free(spec);
+      continue;
+    }
 
     if (g_file_test(abs_path, G_FILE_TEST_IS_DIR))
     {
@@ -1403,7 +1482,7 @@ static void _collectProjectFiles(GeanyProject *project, const gchar *collect_bas
         g_ptr_array_add(parent->children, folder);
       }
 
-      _collectProjectFilesRecursive(abs_path, spec, folder, filter_extensions);
+      _collectProjectFilesRecursive(abs_path, spec, folder, filter_extensions, ignore_patterns);
       if (folder->children->len == 0)
       {
         g_ptr_array_remove(parent->children, folder);
@@ -1453,10 +1532,12 @@ static gboolean load_config(const gchar *filename)
   gchar *project_dir = NULL;
   gchar *project_root = NULL;
   gchar *project_filter = NULL;
+  gchar *project_ignore_filter = NULL;
   gchar *project_name = NULL;
   gchar *collect_base_path = NULL;
   GStrv project_files = NULL;
   GStrv filter_extensions = NULL;
+  GStrv ignore_patterns = NULL;
   gboolean loaded = FALSE;
 
   /* there should not be an open project */
@@ -1472,6 +1553,7 @@ static gboolean load_config(const gchar *filename)
 
   project_root = utils_get_setting_string(project_kf, "project", "root", "");
   project_filter = utils_get_setting_string(project_kf, "project", "filter", "");
+  project_ignore_filter = utils_get_setting_string(project_kf, "project", "ignore_filter", "");
   project_files = g_key_file_get_string_list(project_kf, "project", "files", NULL, NULL);
 
   project_dir = g_path_get_dirname(filename);
@@ -1482,13 +1564,15 @@ static gboolean load_config(const gchar *filename)
   p->name = utils_remove_ext_from_filename(project_name);
   p->base_path = g_strdup(EMPTY(project_root) ? g_strdup(project_dir) : g_build_filename(project_dir, project_root, NULL));
   p->file_patterns = parse_filter_patterns(project_filter);
+  p->ignore_filter = g_strdup(project_ignore_filter);
   p->file_name = utils_get_utf8_from_locale(filename);
 
   filter_extensions = parse_filter_extensions(project_filter);
+  ignore_patterns = parse_ignore_patterns(project_ignore_filter);
   collect_base_path = EMPTY(project_root)
     ? g_strdup(project_dir)
     : g_build_filename(project_dir, project_root, NULL);
-  _collectProjectFiles(p, collect_base_path, project_files, filter_extensions);
+  _collectProjectFiles(p, collect_base_path, project_files, filter_extensions, ignore_patterns);
   loaded = TRUE;
 
   /* prepare session filename */
@@ -1545,8 +1629,10 @@ cleanup:
     g_key_file_free(project_kf);
   g_free(collect_base_path);
   g_strfreev(filter_extensions);
+  g_strfreev(ignore_patterns);
   g_strfreev(project_files);
   g_free(project_name);
+  g_free(project_ignore_filter);
   g_free(project_filter);
   g_free(project_root);
   g_free(project_dir);
@@ -1570,6 +1656,7 @@ static gboolean write_config(void)
 {
   GeanyProject *p;
   GKeyFile *config;
+  GKeyFile *project_kf;
   gchar *filename;
   gchar *data;
   gboolean ret = FALSE;
@@ -1587,6 +1674,21 @@ static gboolean write_config(void)
   g_free(dirSession);
   g_free(filenameNoExt);
   g_free(filenameBase);
+
+  project_kf = g_key_file_new();
+  filename = utils_get_locale_from_utf8(p->file_name);
+  g_key_file_load_from_file(project_kf, filename, G_KEY_FILE_NONE, NULL);
+  g_key_file_set_string(project_kf, "project", "ignore_filter", FALLBACK(p->ignore_filter, ""));
+  data = g_key_file_to_data(project_kf, NULL, NULL);
+  ret = (utils_write_file(filename, data) == 0);
+  g_free(data);
+  g_free(filename);
+  g_key_file_free(project_kf);
+  if (!ret)
+  {
+    g_free(filenameSession);
+    return FALSE;
+  }
 
   config = g_key_file_new();
   /* try to load an existing config to keep manually added comments */

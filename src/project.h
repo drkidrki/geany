@@ -42,6 +42,7 @@ typedef struct GeanyProject
 	 * by a plugin. */
 	gint type;
 	GStrv file_patterns;	/**< Array of filename extension patterns. */
+	gchar *ignore_filter;	/**< Semicolon-separated wildcard path patterns to ignore. */
 
 	struct GeanyProjectPrivate	*priv;	/* must be last, append fields before this item */
 }

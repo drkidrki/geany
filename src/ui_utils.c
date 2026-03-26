@@ -1169,7 +1169,7 @@ static void recent_project_activate_cb(GtkMenuItem *menuitem, G_GNUC_UNUSED gpoi
 	gchar *locale_filename = utils_get_locale_from_utf8(utf8_filename);
 
 	if (app->project && !project_close(FALSE)) {}
-	else if (project_load_file_with_session(locale_filename))
+	else if (project_load_from_file_with_session(locale_filename))
 		recent_file_loaded(utf8_filename, recent_get_recent_projects());
 
 	g_free(locale_filename);

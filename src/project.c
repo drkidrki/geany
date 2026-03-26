@@ -81,7 +81,7 @@ typedef struct _PropertyDialogElements
 
 static gboolean update_config(const PropertyDialogElements *e, gboolean new_project);
 static void on_file_save_button_clicked(GtkButton *button, PropertyDialogElements *e);
-static gboolean load_config(const gchar *filename);
+static gboolean _projectLoadFromFileImp(const gchar *filename);
 static gboolean write_config(void);
 static void update_new_project_dlg(GtkEditable *editable, PropertyDialogElements *e,
   const gchar *base_p);
@@ -313,9 +313,9 @@ static void run_new_dialog(PropertyDialogElements *e)
 }
 
 
-gboolean project_load_file_with_session(const gchar *locale_file_name)
+gboolean project_load_from_file_with_session(const gchar *locale_file_name)
 {
-  if (project_load_file(locale_file_name))
+  if (project_load_from_file(locale_file_name))
   {
     configuration_open_files(app->project->gp_priv->session_files);
     app->project->gp_priv->session_files = NULL;
@@ -335,7 +335,7 @@ static void run_open_dialog(GtkFileChooser *dialog)
 
     if (app->project && !project_close(FALSE)) {}
     /* try to load the config */
-    else if (! project_load_file_with_session(filename))
+    else if (! project_load_from_file_with_session(filename))
     {
       gchar *utf8_filename = utils_get_utf8_from_locale(filename);
 
@@ -1070,11 +1070,11 @@ static void on_radio_long_line_custom_toggled(GtkToggleButton *radio, GtkWidget 
 }
 
 
-gboolean project_load_file(const gchar *locale_file_name)
+gboolean project_load_from_file(const gchar *locale_file_name)
 {
   g_return_val_if_fail(locale_file_name != NULL, FALSE);
 
-  if (load_config(locale_file_name))
+  if (_projectLoadFromFileImp(locale_file_name))
   {
     gchar *utf8_filename = utils_get_utf8_from_locale(locale_file_name);
 
@@ -1523,7 +1523,7 @@ static void _collectProjectFiles(GeanyProject *project, const gchar *collect_bas
  * At this point there should not be an already opened project in Geany otherwise it will just
  * return.
  * The filename is expected in the locale encoding. */
-static gboolean load_config(const gchar *filename)
+static gboolean _projectLoadFromFileImp(const gchar *filename)
 {
   GKeyFile *config;
   GKeyFile *project_kf = NULL;

@@ -597,11 +597,11 @@ static void sidebar_projectfiles_update_all(void)
 {
   gtk_tree_store_clear(store_projectfiles);
 
-  if (app->project == NULL || app->project->priv == NULL || app->project->priv->project_root == NULL)
+  if (app->project == NULL || app->project->gp_priv == NULL || app->project->gp_priv->project_root == NULL)
     return;
 
-  if (app->project->priv->project_root->children != NULL)
-    sidebar_projectfiles_add_items(app->project->priv->project_root->children, NULL);
+  if (app->project->gp_priv->project_root->children != NULL)
+    sidebar_projectfiles_add_items(app->project->gp_priv->project_root->children, NULL);
 }
 
 
@@ -655,7 +655,7 @@ static gchar *get_project_folder(const gchar *path)
       rest = path + len;
       if (*rest == G_DIR_SEPARATOR || *rest == '\0')
       {
-        dirname = g_strdup_printf("%s%s", app->project->name, rest);
+        dirname = g_strdup_printf("%s%s", app->project->gp_name, rest);
       }
     }
     g_free(project_base_path);
@@ -2040,7 +2040,7 @@ static void documents_menu_update(GtkTreeSelection *selection)
   }
   path = !EMPTY(shortname) &&
     (g_path_is_absolute(shortname) ||
-    (app->project && g_str_has_prefix(shortname, app->project->name)));
+    (app->project && g_str_has_prefix(shortname, app->project->gp_name)));
 
   /* can close all, save all (except shortname), but only reload individually ATM */
   gtk_widget_set_sensitive(doc_items.close, sel);

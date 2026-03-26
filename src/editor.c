@@ -394,7 +394,7 @@ static gboolean is_style_php(gint style)
 static gint editor_get_long_line_type(void)
 {
 	if (app->project)
-		switch (app->project->priv->long_line_behaviour)
+		switch (app->project->gp_priv->long_line_behaviour)
 		{
 			case 0: /* marker disabled */
 				return 2;
@@ -413,15 +413,15 @@ static gint editor_get_long_line_type(void)
 
 static gint editor_get_long_line_column(void)
 {
-	if (app->project && app->project->priv->long_line_behaviour != 1 /* use global settings */)
-		return app->project->priv->long_line_column;
+	if (app->project && app->project->gp_priv->long_line_behaviour != 1 /* use global settings */)
+		return app->project->gp_priv->long_line_column;
 	else
 		return editor_prefs.long_line_column;
 }
 
 
 #define get_project_pref(id)\
-	(app->project ? app->project->priv->id : editor_prefs.id)
+	(app->project ? app->project->gp_priv->id : editor_prefs.id)
 
 static const GeanyEditorPrefs *
 get_default_prefs(void)
@@ -1434,7 +1434,7 @@ get_default_indent_prefs(void)
 {
 	static GeanyIndentPrefs iprefs;
 
-	iprefs = app->project ? *app->project->priv->indentation : *editor_prefs.indentation;
+	iprefs = app->project ? *app->project->gp_priv->indentation : *editor_prefs.indentation;
 	return &iprefs;
 }
 

@@ -293,8 +293,8 @@ static void run_new_dialog(PropertyDialogElements *e)
       }
       else
       {
-        ui_set_statusbar(TRUE, _("Project \"%s\" created."), app->project->name);
-        ui_add_recent_project_file(app->project->file_name);
+        ui_set_statusbar(TRUE, _("Project \"%s\" created."), app->project->gp_name);
+        ui_add_recent_project_file(app->project->gp_file_name);
         return;
       }
     }
@@ -317,8 +317,8 @@ gboolean project_load_file_with_session(const gchar *locale_file_name)
 {
   if (project_load_file(locale_file_name))
   {
-    configuration_open_files(app->project->priv->session_files);
-    app->project->priv->session_files = NULL;
+    configuration_open_files(app->project->gp_priv->session_files);
+    app->project->gp_priv->session_files = NULL;
     document_new_file_if_non_open();
     ui_focus_current_document();
     return TRUE;
@@ -439,13 +439,13 @@ gboolean project_close(gboolean open_default)
 
   /* save project session files, etc */
   if (!write_config())
-    g_warning("Project file \"%s\" could not be written", app->project->file_name);
+    g_warning("Project file \"%s\" could not be written", app->project->gp_file_name);
 
   /* close all existing tabs first */
   if (!document_close_all())
     return FALSE;
 
-  ui_set_statusbar(TRUE, _("Project \"%s\" closed."), app->project->name);
+  ui_set_statusbar(TRUE, _("Project \"%s\" closed."), app->project->gp_name);
   destroy_project(open_default);
   return TRUE;
 }
@@ -460,24 +460,24 @@ static void destroy_project(gboolean open_default)
   g_signal_emit_by_name(geany_object, "project-before-close");
 
   /* remove project filetypes build entries */
-  if (app->project->priv->build_filetypes_list != NULL)
+  if (app->project->gp_priv->build_filetypes_list != NULL)
   {
-    g_ptr_array_foreach(app->project->priv->build_filetypes_list, remove_foreach_project_filetype, NULL);
-    g_ptr_array_free(app->project->priv->build_filetypes_list, FALSE);
+    g_ptr_array_foreach(app->project->gp_priv->build_filetypes_list, remove_foreach_project_filetype, NULL);
+    g_ptr_array_free(app->project->gp_priv->build_filetypes_list, FALSE);
   }
 
   /* remove project non filetype build menu items */
   build_remove_menu_item(GEANY_BCS_PROJ, GEANY_GBG_NON_FT, -1);
   build_remove_menu_item(GEANY_BCS_PROJ, GEANY_GBG_EXEC, -1);
 
-  g_free(app->project->name);
-  g_free(app->project->description);
-  g_free(app->project->file_name);
-  g_free(app->project->base_path);
-  g_strfreev(app->project->file_patterns);
-  g_free(app->project->ignore_filter);
-  if (app->project->priv->project_root != NULL)
-    project_item_free(app->project->priv->project_root);
+  g_free(app->project->gp_name);
+  g_free(app->project->gp_description);
+  g_free(app->project->gp_file_name);
+  g_free(app->project->gp_base_path);
+  g_strfreev(app->project->gp_file_patterns);
+  g_free(app->project->gp_ignore_filter);
+  if (app->project->gp_priv->project_root != NULL)
+    project_item_free(app->project->gp_priv->project_root);
 
   g_free(app->project);
   app->project = NULL;
@@ -615,12 +615,12 @@ static void show_project_properties(gboolean show_build)
     stash_group_display(node->data, e.dialog);
 
   /* fill the elements with the appropriate data */
-  gtk_entry_set_text(GTK_ENTRY(e.name), p->name);
-  gtk_label_set_text(GTK_LABEL(e.file_name), p->file_name);
-  gtk_entry_set_text(GTK_ENTRY(e.base_path), p->base_path);
+  gtk_entry_set_text(GTK_ENTRY(e.name), p->gp_name);
+  gtk_label_set_text(GTK_LABEL(e.file_name), p->gp_file_name);
+  gtk_entry_set_text(GTK_ENTRY(e.base_path), p->gp_base_path);
 
   radio_long_line_custom = ui_lookup_widget(e.dialog, "radio_long_line_custom_project");
-  switch (p->priv->long_line_behaviour)
+  switch (p->gp_priv->long_line_behaviour)
   {
     case 0: widget = ui_lookup_widget(e.dialog, "radio_long_line_disabled_project"); break;
     case 1: widget = ui_lookup_widget(e.dialog, "radio_long_line_default_project"); break;
@@ -629,15 +629,15 @@ static void show_project_properties(gboolean show_build)
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), TRUE);
 
   widget = ui_lookup_widget(e.dialog, "spin_long_line_project");
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget), (gdouble)p->priv->long_line_column);
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget), (gdouble)p->gp_priv->long_line_column);
   on_radio_long_line_custom_toggled(GTK_TOGGLE_BUTTON(radio_long_line_custom), widget);
 
   /* set text */
   buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(e.description));
-  gtk_text_buffer_set_text(buffer, p->description ? p->description : "", -1);
+  gtk_text_buffer_set_text(buffer, p->gp_description ? p->gp_description : "", -1);
 
   /* set the file patterns */
-  entry_text = p->file_patterns ? g_strjoinv(" ", p->file_patterns) : g_strdup("");
+  entry_text = p->gp_file_patterns ? g_strjoinv(" ", p->gp_file_patterns) : g_strdup("");
   gtk_entry_set_text(GTK_ENTRY(e.patterns), entry_text);
   g_free(entry_text);
 
@@ -659,7 +659,7 @@ static void show_project_properties(gboolean show_build)
         SHOW_ERR(_("Project file could not be written"));
       else
       {
-        ui_set_statusbar(TRUE, _("Project \"%s\" saved."), app->project->name);
+        ui_set_statusbar(TRUE, _("Project \"%s\" saved."), app->project->gp_name);
         break;
       }
     }
@@ -694,7 +694,7 @@ gboolean project_ask_close(void)
     if (!interface_prefs.warn_on_project_close ||
       dialogs_show_question_full(NULL, GTK_STOCK_CLOSE, GTK_STOCK_CANCEL,
       _("Do you want to close it before proceeding?"),
-      _("The '%s' project is open."), app->project->name))
+      _("The '%s' project is open."), app->project->gp_name))
     {
       return project_close(FALSE);
     }
@@ -712,15 +712,15 @@ static GeanyProject *create_project(void)
 
   memset(&priv, 0, sizeof priv);
   priv.indentation = &indentation;
-  project->priv = &priv;
+  project->gp_priv = &priv;
 
   init_stash_prefs();
 
-  project->file_patterns = NULL;
-  project->ignore_filter = NULL;
+  project->gp_file_patterns = NULL;
+  project->gp_ignore_filter = NULL;
 
-  project->priv->long_line_behaviour = 1 /* use global settings */;
-  project->priv->long_line_column = editor_prefs.long_line_column;
+  project->gp_priv->long_line_behaviour = 1 /* use global settings */;
+  project->gp_priv->long_line_column = editor_prefs.long_line_column;
 
   app->project = project;
   return project;
@@ -832,10 +832,10 @@ static gboolean update_config(const PropertyDialogElements *e, gboolean new_proj
   }
   p = app->project;
 
-  SETPTR(p->name, g_strdup(name));
-  SETPTR(p->file_name, g_strdup(file_name));
+  SETPTR(p->gp_name, g_strdup(name));
+  SETPTR(p->gp_file_name, g_strdup(file_name));
   /* use "." if base_path is empty */
-  SETPTR(p->base_path, g_strdup(!EMPTY(base_path) ? base_path : "./"));
+  SETPTR(p->gp_base_path, g_strdup(!EMPTY(base_path) ? base_path : "./"));
 
   if (! new_project)  /* save properties specific fields */
   {
@@ -853,7 +853,7 @@ static gboolean update_config(const PropertyDialogElements *e, gboolean new_proj
     buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(e->description));
     gtk_text_buffer_get_start_iter(buffer, &start);
     gtk_text_buffer_get_end_iter(buffer, &end);
-    SETPTR(p->description, gtk_text_buffer_get_text(buffer, &start, &end, FALSE));
+    SETPTR(p->gp_description, gtk_text_buffer_get_text(buffer, &start, &end, FALSE));
 
     foreach_slist(node, stash_groups)
       stash_group_update(node->data, e->dialog);
@@ -864,37 +864,37 @@ static gboolean update_config(const PropertyDialogElements *e, gboolean new_proj
 
     if (ft != NULL && ft->priv->projfilecmds != oldvalue && ft->priv->project_list_entry < 0)
     {
-      if (p->priv->build_filetypes_list == NULL)
-        p->priv->build_filetypes_list = g_ptr_array_new();
-      ft->priv->project_list_entry = p->priv->build_filetypes_list->len;
-      g_ptr_array_add(p->priv->build_filetypes_list, ft);
+      if (p->gp_priv->build_filetypes_list == NULL)
+        p->gp_priv->build_filetypes_list = g_ptr_array_new();
+      ft->priv->project_list_entry = p->gp_priv->build_filetypes_list->len;
+      g_ptr_array_add(p->gp_priv->build_filetypes_list, ft);
     }
     build_menu_update(doc);
 
     widget = ui_lookup_widget(e->dialog, "radio_long_line_disabled_project");
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)))
-      p->priv->long_line_behaviour = 0;
+      p->gp_priv->long_line_behaviour = 0;
     else
     {
       widget = ui_lookup_widget(e->dialog, "radio_long_line_default_project");
       if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)))
-        p->priv->long_line_behaviour = 1;
+        p->gp_priv->long_line_behaviour = 1;
       else
         /* "Custom" radio button must be checked */
-        p->priv->long_line_behaviour = 2;
+        p->gp_priv->long_line_behaviour = 2;
     }
 
     widget = ui_lookup_widget(e->dialog, "spin_long_line_project");
-    p->priv->long_line_column = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+    p->gp_priv->long_line_column = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
     apply_editor_prefs();
 
     /* get and set the project file patterns */
     tmp = g_strdup(gtk_entry_get_text(GTK_ENTRY(e->patterns)));
-    g_strfreev(p->file_patterns);
+    g_strfreev(p->gp_file_patterns);
     g_strstrip(tmp);
     str = g_string_new(tmp);
     do {} while (utils_string_replace_all(str, "  ", " "));
-    p->file_patterns = g_strsplit(str->str, " ", -1);
+    p->gp_file_patterns = g_strsplit(str->str, " ", -1);
     g_string_free(str, TRUE);
     g_free(tmp);
   }
@@ -1078,7 +1078,7 @@ gboolean project_load_file(const gchar *locale_file_name)
   {
     gchar *utf8_filename = utils_get_utf8_from_locale(locale_file_name);
 
-    ui_set_statusbar(TRUE, _("Project \"%s\" opened."), app->project->name);
+    ui_set_statusbar(TRUE, _("Project \"%s\" opened."), app->project->gp_name);
 
     ui_add_recent_project_file(utf8_filename);
     g_free(utf8_filename);
@@ -1429,14 +1429,14 @@ static void _collectProjectFiles(GeanyProject *project, const gchar *collect_bas
 {
   gint i;
 
-  g_return_if_fail(project != NULL && project->priv != NULL);
+  g_return_if_fail(project != NULL && project->gp_priv != NULL);
   g_return_if_fail(collect_base_path != NULL);
 
-  if (project->priv->project_root != NULL)
-    project_item_free(project->priv->project_root);
+  if (project->gp_priv->project_root != NULL)
+    project_item_free(project->gp_priv->project_root);
 
-  project->priv->project_root = project_item_new(GEANY_PROJECT_ITEM_FOLDER,
-    FALLBACK(project->name, ""), project->base_path, project->base_path);
+  project->gp_priv->project_root = project_item_new(GEANY_PROJECT_ITEM_FOLDER,
+    FALLBACK(project->gp_name, ""), project->gp_base_path, project->gp_base_path);
 
   if (file_specs == NULL)
     return;
@@ -1470,10 +1470,10 @@ static void _collectProjectFiles(GeanyProject *project, const gchar *collect_bas
       GeanyProjectItem *folder;
 
       if (!utils_str_equal(dirname, "."))
-        parent = project_item_ensure_folder_path(project->priv->project_root, dirname,
+        parent = project_item_ensure_folder_path(project->gp_priv->project_root, dirname,
           collect_base_path);
       else
-        parent = project->priv->project_root;
+        parent = project->gp_priv->project_root;
 
       folder = project_item_find_child_folder(parent, name);
       if (folder == NULL)
@@ -1501,11 +1501,11 @@ static void _collectProjectFiles(GeanyProject *project, const gchar *collect_bas
 
       if (!utils_str_equal(dirname, "."))
       {
-        parent = project_item_ensure_folder_path(project->priv->project_root, dirname,
+        parent = project_item_ensure_folder_path(project->gp_priv->project_root, dirname,
           collect_base_path);
       }
       else
-        parent = project->priv->project_root;
+        parent = project->gp_priv->project_root;
 
       file = project_item_new(GEANY_PROJECT_ITEM_FILE, name, spec, abs_path);
       g_ptr_array_add(parent->children, file);
@@ -1561,11 +1561,11 @@ static gboolean load_config(const gchar *filename)
 
   /* create a project for us */
   p = create_project();
-  p->name = utils_remove_ext_from_filename(project_name);
-  p->base_path = g_strdup(EMPTY(project_root) ? g_strdup(project_dir) : g_build_filename(project_dir, project_root, NULL));
-  p->file_patterns = parse_filter_patterns(project_filter);
-  p->ignore_filter = g_strdup(project_ignore_filter);
-  p->file_name = utils_get_utf8_from_locale(filename);
+  p->gp_name = utils_remove_ext_from_filename(project_name);
+  p->gp_base_path = g_strdup(EMPTY(project_root) ? g_strdup(project_dir) : g_build_filename(project_dir, project_root, NULL));
+  p->gp_file_patterns = parse_filter_patterns(project_filter);
+  p->gp_ignore_filter = g_strdup(project_ignore_filter);
+  p->gp_file_name = utils_get_utf8_from_locale(filename);
 
   filter_extensions = parse_filter_extensions(project_filter);
   ignore_patterns = parse_ignore_patterns(project_ignore_filter);
@@ -1576,7 +1576,7 @@ static gboolean load_config(const gchar *filename)
   loaded = TRUE;
 
   /* prepare session filename */
-  gchar *filenameBase = g_path_get_basename(p->file_name);
+  gchar *filenameBase = g_path_get_basename(p->gp_file_name);
   gchar *filenameNoExt = utils_remove_ext_from_filename(filenameBase);
   gchar *dirSession = g_build_path(G_DIR_SEPARATOR_S, app->configdir, "sessions", NULL);
   if(!g_file_test(dirSession, G_FILE_TEST_IS_DIR)) {
@@ -1594,11 +1594,11 @@ static gboolean load_config(const gchar *filename)
     foreach_slist(node, stash_groups)
       stash_group_load_from_key_file(node->data, config);
 
-    p->description = utils_get_setting_string(config, "project", "description", "");
+    p->gp_description = utils_get_setting_string(config, "project", "description", "");
 
-    p->priv->long_line_behaviour = utils_get_setting_integer(config, "long line marker",
+    p->gp_priv->long_line_behaviour = utils_get_setting_integer(config, "long line marker",
       "long_line_behaviour", 1 /* follow global */);
-    p->priv->long_line_column = utils_get_setting_integer(config, "long line marker",
+    p->gp_priv->long_line_column = utils_get_setting_integer(config, "long line marker",
       "long_line_column", editor_prefs.long_line_column);
     apply_editor_prefs();
 
@@ -1617,7 +1617,7 @@ static gboolean load_config(const gchar *filename)
       document_close_all();
     }
   /* read session files so they can be opened with configuration_open_files() */
-  p->priv->session_files = configuration_load_session_files(config);
+  p->gp_priv->session_files = configuration_load_session_files(config);
   g_signal_emit_by_name(geany_object, "project-open", config);
   g_key_file_free(config);
   g_free(filenameSession);
@@ -1666,7 +1666,7 @@ static gboolean write_config(void)
   p = app->project;
   
   // prepare session filename
-  gchar *filenameBase = g_path_get_basename(p->file_name);
+  gchar *filenameBase = g_path_get_basename(p->gp_file_name);
   gchar *filenameNoExt = utils_remove_ext_from_filename(filenameBase);
   gchar *dirSession = g_build_path(G_DIR_SEPARATOR_S, app->configdir, "sessions", NULL);
   gchar *filenameSession = g_strconcat(dirSession, G_DIR_SEPARATOR_S, filenameNoExt, "."GEANY_SESSION_EXT, NULL);
@@ -1676,9 +1676,9 @@ static gboolean write_config(void)
 
   /*
   GKeyFile *project_kf = g_key_file_new();
-  filename = utils_get_locale_from_utf8(p->file_name);
+  filename = utils_get_locale_from_utf8(p->gp_file_name);
   g_key_file_load_from_file(project_kf, filename, G_KEY_FILE_NONE, NULL);
-  g_key_file_set_string(project_kf, "project", "ignore_filter", FALLBACK(p->ignore_filter, ""));
+  g_key_file_set_string(project_kf, "project", "gp_ignore_filter", FALLBACK(p->gp_ignore_filter, ""));
   data = g_key_file_to_data(project_kf, NULL, NULL);
   ret = (utils_write_file(filename, data) == 0);
   g_free(data);
@@ -1698,12 +1698,12 @@ static gboolean write_config(void)
   foreach_slist(node, stash_groups)
     stash_group_save_to_key_file(node->data, config);
     
-  if (p->description)
-    g_key_file_set_string(config, "project", "description", p->description);
+  if (p->gp_description)
+    g_key_file_set_string(config, "project", "description", p->gp_description);
   
   // editor settings
-  g_key_file_set_integer(config, "long line marker", "long_line_behaviour", p->priv->long_line_behaviour);
-  g_key_file_set_integer(config, "long line marker", "long_line_column", p->priv->long_line_column);
+  g_key_file_set_integer(config, "long line marker", "long_line_behaviour", p->gp_priv->long_line_behaviour);
+  g_key_file_set_integer(config, "long line marker", "long_line_column", p->gp_priv->long_line_column);
 
   /* store the session files into the project too */
   configuration_save_session_files(config);
@@ -1744,19 +1744,19 @@ gchar *project_get_base_path(void)
 {
   GeanyProject *project = app->project;
 
-  if (project && !EMPTY(project->base_path))
+  if (project && !EMPTY(project->gp_base_path))
   {
-    if (g_path_is_absolute(project->base_path))
-      return g_strdup(project->base_path);
+    if (g_path_is_absolute(project->gp_base_path))
+      return g_strdup(project->gp_base_path);
     else
     { /* build base_path out of project file name's dir and base_path */
       gchar *path;
-      gchar *dir = g_path_get_dirname(project->file_name);
+      gchar *dir = g_path_get_dirname(project->gp_file_name);
 
-      if (utils_str_equal(project->base_path, "./"))
+      if (utils_str_equal(project->gp_base_path, "./"))
         return dir;
 
-      path = g_build_filename(dir, project->base_path, NULL);
+      path = g_build_filename(dir, project->gp_base_path, NULL);
       g_free(dir);
       return path;
     }
@@ -1772,7 +1772,7 @@ void project_save_prefs(GKeyFile *config)
 
   if (cl_options.load_session)
   {
-    const gchar *utf8_filename = (project == NULL) ? "" : project->file_name;
+    const gchar *utf8_filename = (project == NULL) ? "" : project->gp_file_name;
 
     g_key_file_set_string(config, "project", "session_file", utf8_filename);
   }

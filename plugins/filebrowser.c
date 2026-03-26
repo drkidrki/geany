@@ -361,7 +361,7 @@ static gchar *get_default_dir(void)
 	GeanyProject *project = geany->app->project;
 
 	if (project)
-		dir = project->base_path;
+		dir = project->gp_base_path;
 	else
 		dir = geany->prefs->default_open_path;
 
@@ -399,7 +399,7 @@ static void on_realized(void)
 	GeanyProject *project = geany->app->project;
 
 	/* if fb_set_project_base_path and project open, the path has already been set */
-	if (! fb_set_project_base_path || project == NULL || EMPTY(project->base_path))
+	if (! fb_set_project_base_path || project == NULL || EMPTY(project->gp_base_path))
 		on_current_path();
 }
 
@@ -1049,17 +1049,17 @@ static void project_open_cb(G_GNUC_UNUSED GObject *obj, G_GNUC_UNUSED GKeyFile *
 	gchar *new_dir;
 	GeanyProject *project = geany->app->project;
 
-	if (! fb_set_project_base_path || project == NULL || EMPTY(project->base_path))
+	if (! fb_set_project_base_path || project == NULL || EMPTY(project->gp_base_path))
 		return;
 
 	/* TODO this is a copy of project_get_base_path(), add it to the plugin API */
-	if (g_path_is_absolute(project->base_path))
-		new_dir = g_strdup(project->base_path);
+	if (g_path_is_absolute(project->gp_base_path))
+		new_dir = g_strdup(project->gp_base_path);
 	else
 	{	/* build base_path out of project file name's dir and base_path */
-		gchar *dir = g_path_get_dirname(project->file_name);
+		gchar *dir = g_path_get_dirname(project->gp_file_name);
 
-		new_dir = g_strconcat(dir, G_DIR_SEPARATOR_S, project->base_path, NULL);
+		new_dir = g_strconcat(dir, G_DIR_SEPARATOR_S, project->gp_base_path, NULL);
 		g_free(dir);
 	}
 	/* get it into locale encoding */

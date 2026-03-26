@@ -1562,7 +1562,7 @@ void on_menu_open_selected_file1_activate(GtkMenuItem *menuitem, gpointer user_d
       filename = g_build_path(G_DIR_SEPARATOR_S, path, sel, NULL);
 
       if (! g_file_test(filename, G_FILE_TEST_EXISTS) &&
-        app->project != NULL && !EMPTY(app->project->base_path))
+        app->project != NULL && !EMPTY(app->project->gp_base_path))
       {
         /* try the project's base path */
         SETPTR(path, project_get_base_path());

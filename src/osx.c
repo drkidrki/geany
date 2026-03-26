@@ -43,7 +43,7 @@ static gboolean open_project_idle(gchar *locale_path)
 
 	utf8_path = utils_get_utf8_from_locale(locale_path);
 	if (app->project == NULL ||
-		(g_strcmp0(utf8_path, app->project->file_name) != 0 && project_ask_close()))
+		(g_strcmp0(utf8_path, app->project->gp_file_name) != 0 && project_ask_close()))
 		project_load_file_with_session(locale_path);
 	g_free(utf8_path);
 	g_free(locale_path);

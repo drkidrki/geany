@@ -171,9 +171,9 @@ static gboolean open_file_dialog_handle_response(GtkFileChooser *dialog, gint re
       g_slist_free_full(filelist, g_free);
     }
   }
-  if (app->project && !EMPTY(app->project->base_path))
+  if (app->project && !EMPTY(app->project->gp_base_path))
     gtk_file_chooser_remove_shortcut_folder(dialog,
-      app->project->base_path, NULL);
+      app->project->gp_base_path, NULL);
   return ret;
 }
 
@@ -535,9 +535,9 @@ void dialogs_show_open_file(void)
   if (initdir != NULL && g_path_is_absolute(initdir))
       gtk_file_chooser_set_current_folder(dialog, initdir);
 
-  if (app->project && !EMPTY(app->project->base_path))
+  if (app->project && !EMPTY(app->project->gp_base_path))
     gtk_file_chooser_add_shortcut_folder(dialog,
-        app->project->base_path, NULL);
+        app->project->gp_base_path, NULL);
 
   while (!open_file_dialog_handle_response(dialog,
     dialogs_file_chooser_run(dialog)));
@@ -706,9 +706,9 @@ static gboolean show_save_as_gtk(GeanyDocument *doc)
     g_free(fname);
   }
 
-  if (app->project && !EMPTY(app->project->base_path))
+  if (app->project && !EMPTY(app->project->gp_base_path))
     gtk_file_chooser_add_shortcut_folder(GTK_FILE_CHOOSER(dialog),
-      app->project->base_path, NULL);
+      app->project->gp_base_path, NULL);
 
   /* Run the dialog synchronously, pausing this function call */
   do
@@ -717,9 +717,9 @@ static gboolean show_save_as_gtk(GeanyDocument *doc)
   }
   while (! save_as_dialog_handle_response(doc, dialog, resp));
 
-  if (app->project && !EMPTY(app->project->base_path))
+  if (app->project && !EMPTY(app->project->gp_base_path))
     gtk_file_chooser_remove_shortcut_folder(dialog,
-      app->project->base_path, NULL);
+      app->project->gp_base_path, NULL);
 
   dialogs_file_chooser_destroy(dialog);
 
@@ -1472,9 +1472,9 @@ static GPtrArray *windows_dialog_collect_rows(GeanyWindowsDialogMode mode)
       g_ptr_array_add(rows, row);
     }
   }
-  else if (app->project && app->project->priv && app->project->priv->project_root)
+  else if (app->project && app->project->gp_priv && app->project->gp_priv->project_root)
   {
-    windows_dialog_collect_project_files(app->project->priv->project_root, rows);
+    windows_dialog_collect_project_files(app->project->gp_priv->project_root, rows);
   }
 
   g_ptr_array_sort(rows, windows_dialog_sort_rows);

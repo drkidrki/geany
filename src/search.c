@@ -873,11 +873,11 @@ static void update_file_patterns(GtkWidget *mode_combo, GtkWidget *fcombo)
   }
   else if (selection == FILES_MODE_PROJECT)
   {
-    if (app->project && !EMPTY(app->project->file_patterns))
+    if (app->project && !EMPTY(app->project->gp_file_patterns))
     {
       gchar *patterns;
 
-      patterns = g_strjoinv(" ", app->project->file_patterns);
+      patterns = g_strjoinv(" ", app->project->gp_file_patterns);
       gtk_entry_set_text(GTK_ENTRY(entry), patterns);
       g_free(patterns);
     }
@@ -1134,7 +1134,7 @@ void search_show_find_in_files_dialog_full(const gchar *text, const gchar *dir)
 
   /* add project's base path directory to the dir list, we do this here once
    * (in create_fif_dialog() it would fail if a project is opened after dialog creation) */
-  if (app->project != NULL && !EMPTY(app->project->base_path))
+  if (app->project != NULL && !EMPTY(app->project->gp_base_path))
   {
     ui_combo_box_prepend_text_once(GTK_COMBO_BOX_TEXT(fif_dlg.dir_combo), PROJECT_ROOT_TARGET_DIRECTORY);
     ui_combo_box_prepend_text_once(GTK_COMBO_BOX_TEXT(fif_dlg.dir_combo), PROJECT_FILES_TARGET_DIRECTORY);
@@ -1818,7 +1818,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
   // replace base path macro directory
   if(bSearchInRootTarget) {
     g_free(dir);
-    dir = g_strdup(app->project->base_path);
+    dir = g_strdup(app->project->gp_base_path);
   }
   patterns = bSearchInProjectFiles ? NULL : get_fif_patterns();
   argv = search_get_argv(dir, patterns, settings.fif_recursive, NULL);
@@ -1833,7 +1833,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
   // replace project files macro directory
   if(bSearchInProjectFiles) {
     g_free(dir);
-    dir = g_strdup(app->project->base_path);
+    dir = g_strdup(app->project->gp_base_path);
   }
   
   reset_msgwin();
@@ -2265,8 +2265,8 @@ static gchar **search_get_argv(const gchar *dir, GSList *patterns, gboolean recu
   {
     GeanyProjectItem *project_root = NULL;
 
-    if (app->project != NULL && app->project->priv != NULL)
-      project_root = app->project->priv->project_root;
+    if (app->project != NULL && app->project->gp_priv != NULL)
+      project_root = app->project->gp_priv->project_root;
     if (project_root == NULL)
       return NULL;
 

@@ -371,7 +371,7 @@ void ui_set_window_title(GeanyDocument *doc)
 	if (project)
 	{
 		g_string_append_c(str, '[');
-		g_string_append(str, project->name);
+		g_string_append(str, project->gp_name);
 		g_string_append(str, "] - ");
 	}
 	g_string_append(str, "Geany");
@@ -1285,7 +1285,7 @@ void ui_update_recent_project_menu(void)
 		if (app->project)
 		{
 			const gchar *filename = gtk_menu_item_get_label(item->data);
-			sensitive = g_strcmp0(app->project->file_name, filename) != 0;
+			sensitive = g_strcmp0(app->project->gp_file_name, filename) != 0;
 		}
 		gtk_widget_set_sensitive(item->data, sensitive);
 	}

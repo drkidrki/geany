@@ -34,17 +34,17 @@ G_BEGIN_DECLS
 /** Structure for representing a project. */
 typedef struct GeanyProject
 {
-	gchar *name; 			/**< The name of the project. */
-	gchar *description; 	/**< Short description of the project. */
-	gchar *file_name; 		/**< Where the project file is stored (in UTF-8). */
-	gchar *base_path;		/**< Base path of the project directory (in UTF-8, maybe relative). */
+	gchar *gp_name; 			/**< The name of the project. */
+	gchar *gp_description; 	/**< Short description of the project. */
+	gchar *gp_file_name; 		/**< Where the project file is stored (in UTF-8). */
+	gchar *gp_base_path;		/**< Base path of the project directory (in UTF-8, maybe relative). */
 	/** Identifier whether it is a pure Geany project or modified/extended
 	 * by a plugin. */
-	gint type;
-	GStrv file_patterns;	/**< Array of filename extension patterns. */
-	gchar *ignore_filter;	/**< Semicolon-separated wildcard path patterns to ignore. */
+	gint gp_type;
+	GStrv gp_file_patterns;	/**< Array of filename extension patterns. */
+	gchar *gp_ignore_filter;	/**< Semicolon-separated wildcard path patterns to ignore. */
 
-	struct GeanyProjectPrivate	*priv;	/* must be last, append fields before this item */
+	struct GeanyProjectPrivate	*gp_priv;	/* must be last, append fields before this item */
 }
 GeanyProject;
 

@@ -996,8 +996,8 @@ static void load_startup_files(gint argc, gchar **argv)
 		/* load session files into tabs, as they are found in the session_files variable */
 		if (app->project != NULL)
 		{
-			configuration_open_files(app->project->priv->session_files);
-			app->project->priv->session_files = NULL;
+			configuration_open_files(app->project->gp_priv->session_files);
+			app->project->gp_priv->session_files = NULL;
 		}
 		else
 		{

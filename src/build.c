@@ -2351,16 +2351,16 @@ void build_load_menu(GKeyFile *config, GeanyBuildSource src, gpointer p)
 				if (ftlist != NULL)
 				{
 					gchar **ftname;
-					if (pj->priv->build_filetypes_list == NULL)
-						pj->priv->build_filetypes_list = g_ptr_array_new();
-					g_ptr_array_set_size(pj->priv->build_filetypes_list, 0);
+					if (pj->gp_priv->build_filetypes_list == NULL)
+						pj->gp_priv->build_filetypes_list = g_ptr_array_new();
+					g_ptr_array_set_size(pj->gp_priv->build_filetypes_list, 0);
 					for (ftname = ftlist; *ftname != NULL; ++ftname)
 					{
 						ft = filetypes_lookup_by_name(*ftname);
 						if (ft != NULL)
 						{
 							gchar *regkey = g_strdup_printf("%serror_regex", *ftname);
-							g_ptr_array_add(pj->priv->build_filetypes_list, ft);
+							g_ptr_array_add(pj->gp_priv->build_filetypes_list, ft);
 							SETPTR(ft->priv->projerror_regex_string,
 									g_key_file_get_string(config, build_grp_name, regkey, NULL));
 							g_free(regkey);
@@ -2558,10 +2558,10 @@ void build_save_menu(GKeyFile *config, gpointer ptr, GeanyBuildSource src)
 				g_key_file_set_string(config, build_grp_name, "error_regex", regex_proj);
 			else
 				g_key_file_remove_key(config, build_grp_name, "error_regex", NULL);
-			if (pj->priv->build_filetypes_list != NULL)
+			if (pj->gp_priv->build_filetypes_list != NULL)
 			{
 				GPtrArray *ft_names = g_ptr_array_new();
-				const GPtrArray *build_fts = pj->priv->build_filetypes_list;
+				const GPtrArray *build_fts = pj->gp_priv->build_filetypes_list;
 				
 				for (guint i = 0; i < build_fts->len; i++)
 				{

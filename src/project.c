@@ -1562,7 +1562,7 @@ static gboolean load_config(const gchar *filename)
   /* create a project for us */
   p = create_project();
   p->gp_name = utils_remove_ext_from_filename(project_name);
-  p->gp_base_path = g_strdup(EMPTY(project_root) ? g_strdup(project_dir) : g_build_filename(project_dir, project_root, NULL));
+  p->gp_base_path = EMPTY(project_root) ? g_strdup(project_dir) : g_build_filename(project_dir, project_root, NULL);
   p->gp_file_patterns = parse_filter_patterns(project_filter);
   p->gp_ignore_filter = g_strdup(project_ignore_filter);
   p->gp_file_name = utils_get_utf8_from_locale(filename);
@@ -1589,33 +1589,33 @@ static gboolean load_config(const gchar *filename)
   
   // load session config and if successful
   config = g_key_file_new();
-  if (g_key_file_load_from_file(config, filenameSession, G_KEY_FILE_NONE, NULL))
+  if (g_key_file_load_from_file(config, filenameSession, G_KEY_FILE_NONE, NULL)) {
   
     foreach_slist(node, stash_groups)
       stash_group_load_from_key_file(node->data, config);
 
     p->gp_description = utils_get_setting_string(config, "project", "description", "");
 
-    p->gp_priv->long_line_behaviour = utils_get_setting_integer(config, "long line marker",
-      "long_line_behaviour", 1 /* follow global */);
-    p->gp_priv->long_line_column = utils_get_setting_integer(config, "long line marker",
-      "long_line_column", editor_prefs.long_line_column);
+    p->gp_priv->long_line_behaviour = utils_get_setting_integer(config, "long line marker", "long_line_behaviour", 1 /* follow global */);
+    p->gp_priv->long_line_column = utils_get_setting_integer(config, "long line marker", "long_line_column", editor_prefs.long_line_column);
     apply_editor_prefs();
 
     build_load_menu(config, GEANY_BCS_PROJ, (gpointer)p);
-    /* save current (non-project) session (it could have been changed since program startup) */
-    if (!main_status.opening_session_files)
-    {
-      /* Opening another project while some project is already opene causes
-       * that upon closing the first project, empty session is saved here.
-       * The check below prevents that but has a side-effect that when
-       * save_config_on_file_change=FALSE, the session with all closed files
-       * isn't saved when opening a project. */
-      if (have_session_docs())
-        configuration_save_default_session();
-      /* now close all open files */
-      document_close_all();
-    }
+  }
+  /* save current (non-project) session (it could have been changed since program startup) */
+  if (!main_status.opening_session_files)
+  {
+    /* Opening another project while some project is already opene causes
+     * that upon closing the first project, empty session is saved here.
+     * The check below prevents that but has a side-effect that when
+     * save_config_on_file_change=FALSE, the session with all closed files
+     * isn't saved when opening a project. */
+    if (have_session_docs())
+      configuration_save_default_session();
+    /* now close all open files */
+    document_close_all();
+  }
+    
   /* read session files so they can be opened with configuration_open_files() */
   p->gp_priv->session_files = configuration_load_session_files(config);
   g_signal_emit_by_name(geany_object, "project-open", config);

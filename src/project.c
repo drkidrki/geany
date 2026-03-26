@@ -82,7 +82,7 @@ typedef struct _PropertyDialogElements
 static gboolean update_config(const PropertyDialogElements *e, gboolean new_project);
 static void on_file_save_button_clicked(GtkButton *button, PropertyDialogElements *e);
 static gboolean _projectLoadFromFileImp(const gchar *filename);
-static gboolean write_config(void);
+static gboolean _projectSaveSessionToFileImp(void);
 static void update_new_project_dlg(GtkEditable *editable, PropertyDialogElements *e,
   const gchar *base_p);
 static void on_name_entry_changed(GtkEditable *editable, PropertyDialogElements *e);
@@ -286,7 +286,7 @@ static void run_new_dialog(PropertyDialogElements *e)
     if (update_config(e, TRUE))
     {
       // app->project is now set
-      if (!write_config())
+      if (!_projectSaveSessionToFileImp())
       {
         SHOW_ERR(_("Project file could not be written"));
         destroy_project(FALSE);
@@ -438,7 +438,7 @@ gboolean project_close(gboolean open_default)
   g_return_val_if_fail(app->project != NULL, FALSE);
 
   /* save project session files, etc */
-  if (!write_config())
+  if (!_projectSaveSessionToFileImp())
     g_warning("Project file \"%s\" could not be written", app->project->gp_file_name);
 
   /* close all existing tabs first */
@@ -655,7 +655,7 @@ static void show_project_properties(gboolean show_build)
     if (update_config(&e, FALSE))
     {
       g_signal_emit_by_name(geany_object, "project-dialog-confirmed", e.notebook);
-      if (!write_config())
+      if (!_projectSaveSessionToFileImp())
         SHOW_ERR(_("Project file could not be written"));
       else
       {
@@ -1649,10 +1649,37 @@ static void apply_editor_prefs(void)
     editor_apply_update_prefs(documents[i]->editor);
 }
 
+static gboolean _projectSaveToFileImp(void)
+{
+  // fail if no project
+  g_return_val_if_fail(app->project != NULL, FALSE);
+  
+  // prepare
+  gchar *file_patterns = app->project->gp_file_patterns ? g_strjoinv(" ", app->project->gp_file_patterns) : g_strdup("");
+  
+  // write project file
+  GKeyFile *project_kf = g_key_file_new();
+  gchar *filename = utils_get_locale_from_utf8(app->project->gp_file_name);
+  g_key_file_set_string(project_kf, "project", "root", app->project->gp_base_path);
+  g_key_file_set_string(project_kf, "project", "filter", file_patterns);
+  g_key_file_set_string(project_kf, "project", "ignore_filter", app->project->gp_ignore_filter);
+  g_key_file_set_string(project_kf, "project", "files", "");
+  gchar *data = g_key_file_to_data(project_kf, NULL, NULL);
+  gboolean ret = (utils_write_file(filename, data) == 0);
+  
+  // release
+  g_free(file_patterns);
+  g_key_file_free(project_kf);
+  g_free(filename);
+  g_free(data);
+  
+  // done
+  return ret;
+}
 
 /* Write the project settings as well as the project session files into its configuration files.
  * Returns: TRUE if project file was written successfully. */
-static gboolean write_config(void)
+static gboolean _projectSaveSessionToFileImp(void)
 {
   GeanyProject *p;
   GKeyFile *config;
@@ -1673,22 +1700,6 @@ static gboolean write_config(void)
   g_free(dirSession);
   g_free(filenameNoExt);
   g_free(filenameBase);
-
-  /*
-  GKeyFile *project_kf = g_key_file_new();
-  filename = utils_get_locale_from_utf8(p->gp_file_name);
-  g_key_file_load_from_file(project_kf, filename, G_KEY_FILE_NONE, NULL);
-  g_key_file_set_string(project_kf, "project", "gp_ignore_filter", FALLBACK(p->gp_ignore_filter, ""));
-  data = g_key_file_to_data(project_kf, NULL, NULL);
-  ret = (utils_write_file(filename, data) == 0);
-  g_free(data);
-  g_free(filename);
-  g_key_file_free(project_kf);
-  if (!ret)
-  {
-    g_free(filenameSession);
-    return FALSE;
-  }*/
 
   config = g_key_file_new();
   /* try to load an existing config to keep manually added comments */
@@ -1730,7 +1741,7 @@ static gboolean write_config(void)
 GEANY_API_SYMBOL
 void project_write_config(void)
 {
-  if (!write_config())
+  if (!_projectSaveSessionToFileImp())
     SHOW_ERR(_("Project file could not be written"));
 }
 

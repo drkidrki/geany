@@ -617,7 +617,7 @@ void search_show_find_dialog(void)
   g_return_if_fail(doc != NULL);
   
   // first select current word (prevents find action to first find word under cursor)
-  if(search_prefs.use_current_word) {
+  if(search_prefs.use_current_word && sci_get_lines_selected(doc->editor->sci)==0) {
     editor_select_word(doc->editor);
   }
 

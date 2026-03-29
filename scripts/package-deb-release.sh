@@ -32,7 +32,7 @@ rm -rf "$PKGROOT"
 cp -r "$PREFIX/usr" "$PKGROOT/"
 
 # create additional directories
-#mkdir -p "$DEBIAN_DIR"
+mkdir -p "$DEBIAN_DIR"
 mkdir -p "$PKGROOT/usr/share/applications"
 
 # Copy program files

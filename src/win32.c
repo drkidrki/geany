@@ -287,7 +287,7 @@ gchar *win32_get_user_config_dir(void)
 	HRESULT hr;
 	wchar_t path[MAX_PATH];
 
-	hr = SHGetFolderPathAndSubDirW(NULL, CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL, SHGFP_TYPE_CURRENT, L"geany", path);
+	hr = SHGetFolderPathAndSubDirW(NULL, CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL, SHGFP_TYPE_CURRENT, L"genie", path);
 	if (SUCCEEDED(hr))
 	{
 		// GLib always uses UTF-8 for filename encoding on Windows
@@ -305,7 +305,7 @@ gchar *win32_get_user_config_dir(void)
 
 	// glib fallback
 	g_warning("Failed to retrieve Windows config dir, falling back to default");
-	return g_build_filename(g_get_user_config_dir(), "geany", NULL);
+	return g_build_filename(g_get_user_config_dir(), "genie", NULL);
 }
 
 

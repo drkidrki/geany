@@ -28,10 +28,13 @@ rm -rf "$PKGROOT"
 #mkdir -p "$PKGROOT/usr/bin"
 #mkdir -p "$PKGROOT/usr/lib/genie"
 #mkdir -p "$PKGROOT/usr/share/geany"
-#mkdir -p "$PKGROOT/usr/share/applications"
 #mkdir -p "$PKGROOT/usr/share/icons/hicolor/48x48/apps"
 
 cp -r "$PREFIX/usr" "$PKGROOT/"
+
+# create additional directories
+mkdir -p "$PKGROOT/usr/share/applications"
+
 
 # Copy program files
 #echo "Copying files..."

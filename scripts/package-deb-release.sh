@@ -28,7 +28,7 @@ mkdir -p "$DEBIAN_DIR"
 mkdir -p "$PKGROOT/usr/bin"
 mkdir -p "$PKGROOT/usr/share/geany"
 mkdir -p "$PKGROOT/usr/share/applications"
-mkdir -p "$PKGROOT/usr/share/icons/hicolor/128x128/apps"
+mkdir -p "$PKGROOT/usr/share/icons/hicolor/48x48/apps"
 
 # Copy program files
 echo "Copying files..."

@@ -29,13 +29,13 @@ rm -rf "$PKGROOT"
 #mkdir -p "$PKGROOT/usr/share/geany"
 #mkdir -p "$PKGROOT/usr/share/icons/hicolor/48x48/apps"
 
-# Create directory structure
-mkdir -p "$DEBIAN_DIR"
-mkdir -p "$PKGROOT/usr/"
-mkdir -p "$PKGROOT/usr/share/applications"
 
 # copy all installed files
 cp -r "$PREFIX/usr/" "$PKGROOT/usr"
+
+# Create directory structure
+mkdir -p "$DEBIAN_DIR"
+mkdir -p "$PKGROOT/usr/share/applications"
 
 # Copy program files
 #echo "Copying files..."

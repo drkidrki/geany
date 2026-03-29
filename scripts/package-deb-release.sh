@@ -31,7 +31,7 @@ rm -rf "$PKGROOT"
 
 # Create directory structure
 mkdir -p "$DEBIAN_DIR"
-mkdir -p "$PKGROOT/usr/
+mkdir -p "$PKGROOT/usr/"
 mkdir -p "$PKGROOT/usr/share/applications"
 
 # copy all installed files

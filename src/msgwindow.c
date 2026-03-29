@@ -1240,13 +1240,13 @@ gboolean msgwin_goto_messages_file_line(gboolean focus_editor)
 			if (filename != NULL)
 			{
 				// check if file if is already opened
-				gboolean bDocumentOpened = false;
+				gboolean bDocumentOpened = FALSE;
 				doc = document_find_by_filename(filename);
 				// if not
 				if(doc==NULL) {
 					// open it now
 					doc = document_open_file(filename, FALSE, NULL, NULL);
-					bDocumentOpened = true;
+					bDocumentOpened = TRUE;
 				}
 				if (doc != NULL)
 				{
@@ -1283,16 +1283,16 @@ static gboolean on_msgwin_button_press_event(GtkWidget *widget, GdkEventButton *
 		{
 			case MSG_COMPILER:
 			{	/* mouse click in the compiler treeview */
-				msgwin_goto_compiler_file_line(true);
+				msgwin_goto_compiler_file_line(TRUE);
 				break;
 			}
 			case MSG_MESSAGE:
 			{	/* mouse click in the message treeview (results of 'Find usage') */
-				msgwin_goto_messages_file_line(true);
+				msgwin_goto_messages_file_line(TRUE);
 				break;
 			}
 		}
-		return true;	/* TRUE prevents message window re-focusing */
+		return TRUE;	/* TRUE prevents message window re-focusing */
 	}
 
 	if (event->button == 3)

@@ -1775,7 +1775,7 @@ static gboolean projectfiles_execute_selection(GtkWidget *widget, GtkTreeSelecti
       // either find or open document for our filename
       GeanyDocument *doc = document_find_by_real_path(file_name);
       if(!doc) {
-        doc = document_open_file(file_name, false, NULL, NULL);
+        doc = document_open_file(file_name, FALSE, NULL, NULL);
       }
       // if valid
       if(doc) {

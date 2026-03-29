@@ -8,7 +8,7 @@ PREFIX="$ROOT/deploy/release"
 PKGROOT="$ROOT/package/release"
 DEBIAN_DIR="$PKGROOT/DEBIAN"
 
-APP_NAME="geany-drki"
+APP_NAME="genie"
 VERSION="2.1-drki"
 ARCH="amd64"
 
@@ -36,7 +36,7 @@ cp -r "$PREFIX/share/geany"/* "$PKGROOT/usr/share/geany/" 2>/dev/null || true
 
 # Copy binary
 if [ -f "$PREFIX/bin/geany" ]; then
-    cp "$PREFIX/bin/geany" "$PKGROOT/usr/bin/geany-drki"
+    cp "$PREFIX/bin/geany" "$PKGROOT/usr/bin/genie"
 else
     echo "ERROR: geany binary not found in $PREFIX/bin"
     exit 1
@@ -45,18 +45,18 @@ fi
 # Copy icon (try to find one)
 ICON_SRC="$PREFIX/share/icons/hicolor/48x48/apps/geany.png"
 if [ -f "$ICON_SRC" ]; then
-    cp "$ICON_SRC" "$PKGROOT/usr/share/icons/hicolor/128x128/apps/geany-drki.png"
+    cp "$ICON_SRC" "$PKGROOT/usr/share/icons/hicolor/48x48/apps/genie.png"
 else
     echo "Warning: icon not found, skipping"
 fi
 
 # Create launcher (.desktop)
-cat > "$PKGROOT/usr/share/applications/geany-drki.desktop" <<EOF
+cat > "$PKGROOT/usr/share/applications/genie.desktop" <<EOF
 [Desktop Entry]
-Name=Geany (Drki)
+Name=Genie
 Comment=Lightweight IDE (custom build)
-Exec=/usr/bin/geany-drki
-Icon=geany-drki
+Exec=/usr/bin/genie
+Icon=genie
 Terminal=false
 Type=Application
 Categories=Development;IDE;
@@ -78,7 +78,7 @@ EOF
 # Permissions
 chmod 755 "$PKGROOT"
 chmod 755 "$DEBIAN_DIR"
-chmod 755 "$PKGROOT/usr/bin/geany-drki"
+chmod 755 "$PKGROOT/usr/bin/genie"
 
 # Build package
 OUTPUT_DEB="$ROOT/package/${APP_NAME}_${VERSION}_${ARCH}.deb"

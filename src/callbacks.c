@@ -1365,7 +1365,7 @@ void on_menu_show_sidebar1_toggled(GtkCheckMenuItem *checkmenuitem, gpointer use
     // if project files panel is visible
     if(interface_prefs.sidebar_projectfiles_visible) {
       // focus it
-      sidebar_focus_projectfiles_tab(false);
+      sidebar_focus_projectfiles_tab(FALSE);
     }
   // otherwise
   } else {

@@ -1616,7 +1616,7 @@ static gboolean cb_func_project_action(guint key_id)
 
       if (doc != NULL)
       {
-        sidebar_focus_projectfiles_tab(true);
+        sidebar_focus_projectfiles_tab(TRUE);
         sidebar_select_projectfiles_item(doc);
       }
       break;
@@ -1912,7 +1912,7 @@ static gboolean cb_func_switch_action(guint key_id)
       sidebar_focus_openfiles_tab();
       break;
     case GEANY_KEYS_FOCUS_SIDEBAR_PROJECT_FILE_LIST:
-      sidebar_focus_projectfiles_tab(false);
+      sidebar_focus_projectfiles_tab(FALSE);
       break;
     case GEANY_KEYS_FOCUS_SIDEBAR_SYMBOL_LIST:
       sidebar_focus_symbols_tab();

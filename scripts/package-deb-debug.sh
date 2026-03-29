@@ -8,8 +8,8 @@ PREFIX="$ROOT/deploy/debug"
 PKGROOT="$ROOT/package/debug"
 DEBIAN_DIR="$PKGROOT/DEBIAN"
 
-APP_NAME="geany-custom-debug"
-VERSION="2.1-custom"
+APP_NAME="geany-drki-debug"
+VERSION="2.1-drki"
 ARCH="amd64"
 
 echo "== Building DEBUG .deb package =="

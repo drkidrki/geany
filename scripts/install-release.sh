@@ -22,6 +22,12 @@ if [ ! -f "$BUILD/Makefile" ]; then
     exit 1
 fi
 
+# Clean previous install
+if [ -d "$PREFIX" ]; then
+    echo "Removing old install..."
+    rm -rf "$PREFIX"
+fi
+
 mkdir -p "$PREFIX"
 
 cd "$BUILD"

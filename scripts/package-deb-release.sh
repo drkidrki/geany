@@ -35,7 +35,7 @@ mkdir -p "$PKGROOT/usr/"
 mkdir -p "$PKGROOT/usr/share/applications"
 
 # copy all installed files
-cp -r "$PREFIX/usr/*" "$PKGROOT/usr"
+cp -r "$PREFIX/usr/" "$PKGROOT/usr"
 
 # Copy program files
 #echo "Copying files..."

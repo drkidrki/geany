@@ -29,7 +29,7 @@ rm -rf "$PKGROOT"
 #mkdir -p "$PKGROOT/usr/share/geany"
 #mkdir -p "$PKGROOT/usr/share/icons/hicolor/48x48/apps"
 
-cp -r "$PREFIX/usr" "$PKGROOT/"
+cp -r "$PREFIX/usr" "$PKGROOT/usr"
 
 # create additional directories
 mkdir -p "$DEBIAN_DIR"
@@ -89,7 +89,7 @@ EOF
 # Permissions
 chmod 755 "$PKGROOT"
 chmod 755 "$DEBIAN_DIR"
-chmod 755 "$PKGROOT/bin/geany"
+chmod 755 "$PKGROOT/usr/bin/geany"
 
 # Build package
 OUTPUT_DEB="$ROOT/package/${APP_NAME}_${VERSION}_${ARCH}.deb"

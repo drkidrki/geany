@@ -31,7 +31,7 @@ rm -rf "$PKGROOT"
 
 
 # copy all installed files
-mkdir -p "$PKGROOT/
+mkdir -p "$PKGROOT/"
 cp -r "$PREFIX/usr/" "$PKGROOT/usr"
 
 # Create directory structure

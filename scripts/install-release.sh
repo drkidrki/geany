@@ -33,7 +33,7 @@ mkdir -p "$PREFIX"
 cd "$BUILD"
 
 echo "Installing..."
-make install
+make DESTDIR="$PREFIX" install
 
 echo "Done."
 echo "Binary:"

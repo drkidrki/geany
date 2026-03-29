@@ -24,7 +24,6 @@ fi
 rm -rf "$PKGROOT"
 
 # Create directory structure
-#mkdir -p "$DEBIAN_DIR"
 #mkdir -p "$PKGROOT/usr/bin"
 #mkdir -p "$PKGROOT/usr/lib/genie"
 #mkdir -p "$PKGROOT/usr/share/geany"
@@ -33,8 +32,8 @@ rm -rf "$PKGROOT"
 cp -r "$PREFIX/usr" "$PKGROOT/"
 
 # create additional directories
+#mkdir -p "$DEBIAN_DIR"
 mkdir -p "$PKGROOT/usr/share/applications"
-
 
 # Copy program files
 #echo "Copying files..."

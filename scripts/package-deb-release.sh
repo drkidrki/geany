@@ -89,7 +89,7 @@ EOF
 # Permissions
 chmod 755 "$PKGROOT"
 chmod 755 "$DEBIAN_DIR"
-chmod 755 "$PKGROOT/usr/bin/geany"
+chmod 755 "$PKGROOT/bin/geany"
 
 # Build package
 OUTPUT_DEB="$ROOT/package/${APP_NAME}_${VERSION}_${ARCH}.deb"

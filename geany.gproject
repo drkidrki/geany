@@ -1,0 +1,5 @@
+[project]
+root=
+files=src;data/geany.glade;Makefile.am
+filter=.c;.h;.am
+ignore_filter=

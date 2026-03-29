@@ -26,6 +26,7 @@ rm -rf "$PKGROOT"
 # Create directory structure
 mkdir -p "$DEBIAN_DIR"
 mkdir -p "$PKGROOT/usr/bin"
+mkdir -p "$PKGROOT/usr/lib/genie"
 mkdir -p "$PKGROOT/usr/share/geany"
 mkdir -p "$PKGROOT/usr/share/applications"
 mkdir -p "$PKGROOT/usr/share/icons/hicolor/48x48/apps"
@@ -41,6 +42,12 @@ else
     echo "ERROR: geany binary not found in $PREFIX/bin"
     exit 1
 fi
+
+# Copy libraries
+cp "$PREFIX/lib/"libgeany.so* "$PKGROOT/usr/lib/genie/"
+
+# Fix RPATH on libraries
+patchelf --set-rpath '$ORIGIN/../lib/genie' "$PKGROOT/usr/bin/genie"
 
 # Copy icon (try to find one)
 ICON_SRC="$PREFIX/share/icons/hicolor/48x48/apps/geany.png"

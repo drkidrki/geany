@@ -2148,7 +2148,7 @@ void sidebar_focus_openfiles_tab(void)
 }
 
 
-void sidebar_focus_projectfiles_tab(bool bAssureVisible)
+void sidebar_focus_projectfiles_tab(gboolean bAssureVisible)
 {
   // assure sidebar with project files is visible
   if(bAssureVisible && (!ui_prefs.sidebar_visible || !interface_prefs.sidebar_projectfiles_visible)) {

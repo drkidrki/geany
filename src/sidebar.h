@@ -95,7 +95,7 @@ void sidebar_add_common_menu_items(GtkMenu *menu);
 
 void sidebar_focus_openfiles_tab(void);
 
-void sidebar_focus_projectfiles_tab(bool bAssureVisible);
+void sidebar_focus_projectfiles_tab(gboolean bAssureVisible);
 
 void sidebar_focus_symbols_tab(void);
 

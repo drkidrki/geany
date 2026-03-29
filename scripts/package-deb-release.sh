@@ -23,13 +23,6 @@ fi
 # Clean previous package
 rm -rf "$PKGROOT"
 
-# Create directory structure
-#mkdir -p "$PKGROOT/usr/bin"
-#mkdir -p "$PKGROOT/usr/lib/genie"
-#mkdir -p "$PKGROOT/usr/share/geany"
-#mkdir -p "$PKGROOT/usr/share/icons/hicolor/48x48/apps"
-
-
 # copy all installed files
 mkdir -p "$PKGROOT/"
 cp -r "$PREFIX/usr/" "$PKGROOT/usr"
@@ -38,43 +31,8 @@ cp -r "$PREFIX/usr/" "$PKGROOT/usr"
 mkdir -p "$DEBIAN_DIR"
 mkdir -p "$PKGROOT/usr/share/applications"
 
-# Copy program files
-#echo "Copying files..."
-#cp -r "$PREFIX/share/geany"/* "$PKGROOT/usr/share/geany/" 2>/dev/null || true
-
-# Copy binary
-#if [ -f "$PREFIX/bin/geany" ]; then
-#    cp "$PREFIX/bin/geany" "$PKGROOT/usr/bin/genie"
-#else
-#    echo "ERROR: geany binary not found in $PREFIX/bin"
-#    exit 1
-#fi
-
-# Copy libraries
-#cp "$PREFIX/lib/"libgeany.so* "$PKGROOT/usr/lib/genie/"
-
-# Fix RPATH on libraries
-#patchelf --set-rpath '$ORIGIN/../lib/genie' "$PKGROOT/usr/bin/genie"
-
-# Copy icon (try to find one)
-#ICON_SRC="$PREFIX/share/icons/hicolor/48x48/apps/geany.png"
-#if [ -f "$ICON_SRC" ]; then
-#    cp "$ICON_SRC" "$PKGROOT/usr/share/icons/hicolor/48x48/apps/genie.png"
-#else
-#    echo "Warning: icon not found, skipping"
-#fi
-
-# Create launcher (.desktop)
-cat > "$PKGROOT/usr/share/applications/genie.desktop" <<EOF
-[Desktop Entry]
-Name=Genie
-Comment=Lightweight IDE (custom build)
-Exec=/usr/bin/geany
-Icon=geany
-Terminal=false
-Type=Application
-Categories=Development;IDE;
-EOF
+# delete include files
+rm -rf "$PKGROOT/usr/include"
 
 # Create control file with dependencies
 cat > "$DEBIAN_DIR/control" <<EOF

@@ -43,7 +43,7 @@ else
 fi
 
 # Copy icon (try to find one)
-ICON_SRC="$PREFIX/share/icons/hicolor/128x128/apps/geany.png"
+ICON_SRC="$PREFIX/share/icons/hicolor/48x48/apps/geany.png"
 if [ -f "$ICON_SRC" ]; then
     cp "$ICON_SRC" "$PKGROOT/usr/share/icons/hicolor/128x128/apps/geany-drki.png"
 else
